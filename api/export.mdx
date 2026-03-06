@@ -1,0 +1,435 @@
+---
+title: 'EXPORT'
+description: 'Exports the last query results to a JSON file'
+---
+
+## Description
+
+The `EXPORT` command exports the results of the most recent READ query to a JSON file. The exported file contains the table name, field definitions with types, and all records that matched the last query.
+
+## Syntax
+
+```eli
+EXPORT "filename.json";
+```
+
+## Parameters
+
+<ParamField path="filename" type="string" required>
+  The path to the output JSON file. Must be enclosed in double quotes.
+  
+  - Can be a relative or absolute path
+  - Parent directories must exist
+  - File will be created if it doesn't exist
+  - Existing files will be overwritten
+</ParamField>
+
+## Return Value
+
+This command does not return data. On success, it prints:
+```
+Exportado a 'filename' correctamente. (N registros)
+```
+
+Where N is the number of records exported.
+
+## Behavior
+
+1. **Requires Prior READ**: EXPORT only works after executing a READ command
+2. **Exports Last Query**: Only the most recent READ results are exported
+3. **Complete Records**: Exports full records, not just the fields shown in the READ FIELDS clause
+4. **Includes Schema**: The JSON file contains field names and types from the table schema
+5. **Overwrites Files**: If the file exists, it is completely replaced
+
+## Prerequisites
+
+Before using EXPORT, you must:
+1. Have an active database
+2. Have executed a READ command
+3. The READ command must have successfully queried a table
+
+## Examples
+
+### Basic export
+
+```eli
+DATABASE mydb { }
+
+TABLE users {
+  id: int;
+  name: string;
+  email: string;
+}
+
+ADD users { id: 1, name: "Alice", email: "alice@ex.com" };
+ADD users { id: 2, name: "Bob", email: "bob@ex.com" };
+
+READ users {
+  FIELDS: *;
+};
+
+EXPORT "users.json";
+```
+
+Exports all users to `users.json`.
+
+### Export filtered results
+
+```eli
+TABLE products {
+  id: int;
+  name: string;
+  price: float;
+  stock: int;
+}
+
+ADD products { id: 1, name: "Laptop", price: 999.99, stock: 5 };
+ADD products { id: 2, name: "Mouse", price: 25.50, stock: 0 };
+ADD products { id: 3, name: "Keyboard", price: 79.99, stock: 15 };
+
+READ products {
+  FIELDS: *;
+  FILTER: stock > 0;
+};
+
+EXPORT "in_stock_products.json";
+```
+
+Exports only products that are in stock.
+
+### Export selected fields (but includes all in JSON)
+
+```eli
+READ users {
+  FIELDS: name, email;
+};
+
+EXPORT "users_export.json";
+```
+
+Even though READ only displayed name and email, the EXPORT file contains complete records with all fields (including id).
+
+### Export to subdirectory
+
+```eli
+READ orders {
+  FIELDS: *;
+  FILTER: date == "2024-01-15";
+};
+
+EXPORT "exports/orders_2024_01_15.json";
+```
+
+Exports to a subdirectory (which must exist).
+
+### Multiple exports from different queries
+
+```eli
+// Export active users
+READ users {
+  FIELDS: *;
+  FILTER: active == true;
+};
+EXPORT "active_users.json";
+
+// Export inactive users
+READ users {
+  FIELDS: *;
+  FILTER: active == false;
+};
+EXPORT "inactive_users.json";
+```
+
+Each EXPORT uses the results from the immediately preceding READ.
+
+### Export empty results
+
+```eli
+READ products {
+  FIELDS: *;
+  FILTER: price > 10000;
+};
+
+EXPORT "expensive_products.json";
+```
+
+If no products match, exports a JSON file with an empty records array.
+
+## JSON Output Format
+
+The exported JSON file has the following structure:
+
+```json
+{
+  "table": "table_name",
+  "fields": {
+    "field1": "type1",
+    "field2": "type2"
+  },
+  "records": [
+    {
+      "field1": value1,
+      "field2": value2
+    },
+    {
+      "field1": value3,
+      "field2": value4
+    }
+  ]
+}
+```
+
+### Example output
+
+```json
+{
+  "table": "users",
+  "fields": {
+    "id": "int",
+    "name": "string",
+    "email": "string",
+    "active": "bool"
+  },
+  "records": [
+    {
+      "id": 1,
+      "name": "Alice",
+      "email": "alice@example.com",
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Bob",
+      "email": "bob@example.com",
+      "active": true
+    }
+  ]
+}
+```
+
+## Error Cases
+
+### No prior READ command
+
+```eli
+DATABASE mydb { }
+TABLE users { id: int; name: string; }
+
+EXPORT "users.json";
+```
+
+Results in:
+```
+ERROR: No hay consulta previa para exportar.
+```
+
+Solution: Execute a READ command first:
+```eli
+READ users { FIELDS: *; };
+EXPORT "users.json";
+```
+
+### No active database
+
+```eli
+EXPORT "data.json";
+```
+
+Results in:
+```
+ERROR: No hay base de datos activa.
+```
+
+Solution: Create and use a database first.
+
+### File write error
+
+```eli
+READ users { FIELDS: *; };
+EXPORT "/root/protected/users.json";
+```
+
+If the path is not writable:
+```
+ERROR: Error al exportar: [error message]
+```
+
+Common causes:
+- Directory doesn't exist
+- No write permission
+- Invalid file path
+
+Solution: Use a valid, writable path:
+```eli
+EXPORT "users.json";
+```
+
+### Invalid filename
+
+```eli
+EXPORT "data/invalid:file*.json";
+```
+
+If the filename contains invalid characters for the file system:
+```
+ERROR: Error al exportar: [error message]
+```
+
+## Use Cases
+
+### Data Backup
+
+```eli
+// Backup all data from a table
+READ users { FIELDS: *; };
+EXPORT "backups/users_backup_2024.json";
+```
+
+### Filtered Data Export
+
+```eli
+// Export specific subset for analysis
+READ orders {
+  FIELDS: *;
+  FILTER: total > 1000 && status == "completed";
+};
+EXPORT "high_value_orders.json";
+```
+
+### Data Migration
+
+```eli
+// Export data for import into another system
+READ products { FIELDS: *; };
+EXPORT "products_export.json";
+```
+
+### Report Generation
+
+```eli
+// Generate monthly report
+READ sales {
+  FIELDS: *;
+  FILTER: month == "January" && year == 2024;
+};
+EXPORT "reports/january_2024_sales.json";
+```
+
+### Archival
+
+```eli
+// Archive old records before clearing
+READ logs {
+  FIELDS: *;
+  FILTER: date < "2024-01-01";
+};
+EXPORT "archives/logs_2023.json";
+
+CLEAR logs;
+```
+
+## Comparison with Database Persistence
+
+### EXPORT vs STORE AT
+
+**EXPORT:**
+- Manual operation
+- Exports query results (filtered subset)
+- Single table per file
+- Custom filename and location
+- One-time snapshot
+
+**STORE AT (DATABASE persistence):**
+- Automatic on every change
+- Saves entire database
+- All tables in one file
+- Fixed filename set at database creation
+- Continuous synchronization
+
+### When to use each:
+
+**Use EXPORT for:**
+- Exporting filtered data
+- Creating reports
+- Data analysis
+- One-time backups
+- Sharing specific data subsets
+
+**Use STORE AT for:**
+- Automatic persistence
+- Full database backups
+- Loading data on startup
+- Maintaining data across sessions
+
+## File Management
+
+### Overwriting
+EXPORT always overwrites the target file if it exists. To preserve previous exports, use unique filenames:
+
+```eli
+EXPORT "users_2024_01_15.json";
+EXPORT "users_2024_01_16.json";
+```
+
+### Relative Paths
+Relative paths are resolved from the current working directory:
+
+```eli
+EXPORT "output/data.json";  // Relative
+EXPORT "/tmp/data.json";    // Absolute
+```
+
+### Directory Creation
+EXPORT does not create directories. Ensure the parent directory exists:
+
+```bash
+# In shell, before running ELI script
+mkdir -p exports/2024
+```
+
+```eli
+// Now this works
+EXPORT "exports/2024/data.json";
+```
+
+## Query Result Lifecycle
+
+1. **READ** executes and stores results internally
+2. Results remain in memory until next READ
+3. **EXPORT** can be called any time after READ
+4. Next **READ** replaces the stored results
+5. **EXPORT** now exports the new results
+
+Example:
+```eli
+READ users { FIELDS: *; FILTER: active == true; };
+EXPORT "active.json";  // Exports active users
+
+READ users { FIELDS: *; FILTER: active == false; };
+EXPORT "inactive.json";  // Exports inactive users
+```
+
+## Performance Notes
+
+- EXPORT writes the entire result set to disk
+- Large result sets may take time to write
+- No streaming - entire JSON is built in memory first
+- File I/O is synchronous (blocks until complete)
+- Consider file system performance for large exports
+
+## Related Commands
+
+- [READ](/api/read) - Required before EXPORT to generate query results
+- [DATABASE](/api/database) - STORE AT provides automatic persistence
+- [CLEAR](/api/clear) - Often used with EXPORT for archival workflows
+
+## Notes
+
+- Filename must be in double quotes
+- Export format is standard JSON (can be read by other tools)
+- The FIELDS clause in READ doesn't affect what EXPORT includes (always exports complete records)
+- Multiple consecutive EXPORT commands export the same data (from the last READ)
+- EXPORT does not modify the database or query results
+- Exported JSON uses the same format as database persistence files
+- String values in JSON are properly escaped
+- Null values export as JSON `null`

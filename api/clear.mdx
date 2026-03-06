@@ -1,0 +1,365 @@
+---
+title: 'CLEAR'
+description: 'Removes all records from a table while preserving the schema'
+---
+
+## Description
+
+The `CLEAR` command removes all records from a table while preserving its schema definition. This is useful when you want to delete all data but keep the table structure intact for future inserts.
+
+## Syntax
+
+```eli
+CLEAR table_name;
+```
+
+## Parameters
+
+<ParamField path="table_name" type="string" required>
+  The name of the table to clear. The table must exist in the active database.
+</ParamField>
+
+## Return Value
+
+This command does not return data. It prints:
+```
+Tabla 'table_name' vaciada (estructura conservada).
+```
+
+The database automatically saves to the persistence file if configured, removing all records but keeping the table schema.
+
+## Behavior
+
+1. **Removes All Records**: Deletes every record in the table
+2. **Preserves Schema**: The table structure (field names and types) remains intact
+3. **Non-Reversible**: Deleted records cannot be recovered
+4. **Auto-Save**: Changes are immediately persisted to the JSON file if configured
+5. **Table Remains**: The table itself is not dropped - it still exists but is empty
+
+## Schema Preservation
+
+After CLEAR, the table:
+- Still exists in the database
+- Retains all field definitions and types
+- Can immediately accept new records with ADD
+- Appears in the database structure
+- Has zero records
+
+## Examples
+
+### Clear a simple table
+
+```eli
+DATABASE mydb { }
+
+TABLE users {
+  id: int;
+  name: string;
+  email: string;
+}
+
+ADD users { id: 1, name: "Alice", email: "alice@ex.com" };
+ADD users { id: 2, name: "Bob", email: "bob@ex.com" };
+
+CLEAR users;
+
+// The users table is now empty but still exists
+// The schema (id: int, name: string, email: string) is preserved
+```
+
+After CLEAR, the table has 0 records but you can still ADD new records.
+
+### Clear and repopulate
+
+```eli
+TABLE products {
+  id: int;
+  name: string;
+  price: float;
+}
+
+// Add initial data
+ADD products { id: 1, name: "Laptop", price: 999.99 };
+ADD products { id: 2, name: "Mouse", price: 25.50 };
+
+// Clear all products
+CLEAR products;
+
+// Add new products (table schema still exists)
+ADD products { id: 1, name: "Keyboard", price: 79.99 };
+ADD products { id: 2, name: "Monitor", price: 299.99 };
+```
+
+CLEAR allows you to reset the table data while reusing the same schema.
+
+### Clear for data reset
+
+```eli
+TABLE logs {
+  id: int;
+  timestamp: string;
+  message: string;
+  level: string;
+}
+
+// ... application adds many log entries ...
+
+// Periodically clear old logs
+CLEAR logs;
+
+// Logs table is ready for new entries
+```
+
+Useful for tables that accumulate temporary data.
+
+### Clear with persistence
+
+```eli
+DATABASE store {
+  STORE AT "store.json";
+}
+
+TABLE inventory {
+  id: int;
+  product: string;
+  quantity: int;
+}
+
+ADD inventory { id: 1, product: "Widget", quantity: 100 };
+ADD inventory { id: 2, product: "Gadget", quantity: 50 };
+
+// Clear removes records from both memory and the JSON file
+CLEAR inventory;
+
+// store.json now shows inventory table with 0 records but schema intact
+```
+
+The CLEAR operation is persisted to the JSON file immediately.
+
+### Clear multiple tables
+
+```eli
+TABLE users {
+  id: int;
+  name: string;
+}
+
+TABLE orders {
+  id: int;
+  userId: int;
+  total: float;
+}
+
+TABLE products {
+  id: int;
+  name: string;
+  price: float;
+}
+
+// ... add data to all tables ...
+
+// Clear each table individually
+CLEAR users;
+CLEAR orders;
+CLEAR products;
+
+// All tables are empty but schemas remain
+```
+
+You can clear multiple tables by executing multiple CLEAR commands.
+
+## Error Cases
+
+### No active database
+
+```eli
+CLEAR users;
+```
+
+Results in:
+```
+ERROR: No hay base de datos activa.
+```
+
+Solution: Create or activate a database first:
+```eli
+DATABASE mydb { }
+TABLE users { id: int; name: string; }
+CLEAR users;
+```
+
+### Table doesn't exist
+
+```eli
+DATABASE mydb { }
+
+CLEAR users;
+```
+
+Results in:
+```
+ERROR: La tabla 'users' no existe.
+```
+
+Solution: Create the table before clearing (or verify the table name):
+```eli
+DATABASE mydb { }
+TABLE users { id: int; name: string; }
+CLEAR users;
+```
+
+### Table name typo
+
+```eli
+TABLE products { id: int; name: string; }
+
+CLEAR product;  // Missing 's'
+```
+
+Results in:
+```
+ERROR: La tabla 'product' no existe.
+```
+
+Solution: Use the exact table name (case-sensitive).
+
+## Use Cases
+
+### Testing and Development
+Clear tables between test runs to ensure clean state:
+```eli
+CLEAR test_users;
+CLEAR test_orders;
+// Run tests with empty tables
+```
+
+### Data Migration
+Clear before importing new data:
+```eli
+CLEAR products;
+// Then ADD new products from updated source
+```
+
+### Temporary Data
+Clear tables that hold session or cache data:
+```eli
+CLEAR session_cache;
+CLEAR temp_calculations;
+```
+
+### Reset Application State
+Clear all user-facing data while keeping structure:
+```eli
+CLEAR users;
+CLEAR posts;
+CLEAR comments;
+// Application is reset to initial empty state
+```
+
+### Archival Workflow
+Export data, then clear for next period:
+```eli
+// Export current month's data
+READ transactions { FIELDS: *; };
+EXPORT "january_2024.json";
+
+// Clear for next month
+CLEAR transactions;
+```
+
+## Comparison with Other Commands
+
+### CLEAR vs DROP TABLE (not implemented)
+- **CLEAR**: Removes records, keeps schema, table remains
+- **DROP TABLE**: Would remove both records and schema, table ceases to exist
+
+ELI NoSQL does not have a DROP TABLE command. To fully remove a table, you would need to restart the interpreter or manually edit the JSON file.
+
+### CLEAR vs DELETE (not implemented)
+- **CLEAR**: Removes all records unconditionally
+- **DELETE**: Would remove specific records matching a filter
+
+ELI NoSQL does not have a DELETE command. To remove specific records, you would need to:
+1. EXPORT filtered results
+2. CLEAR the table
+3. Re-import desired records
+
+## Persistence Behavior
+
+When a database has JSON persistence enabled:
+
+**Before CLEAR:**
+```json
+{
+  "database": "mydb",
+  "tables": {
+    "users": {
+      "schema": {"id": "int", "name": "string"},
+      "records": [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bob"}
+      ]
+    }
+  }
+}
+```
+
+**After CLEAR users:**
+```json
+{
+  "database": "mydb",
+  "tables": {
+    "users": {
+      "schema": {"id": "int", "name": "string"},
+      "records": []
+    }
+  }
+}
+```
+
+Notice:
+- Table structure remains in the JSON
+- Schema is unchanged
+- Records array is empty
+
+## Safety Considerations
+
+### No Confirmation
+CLEAR executes immediately without confirmation. Always verify:
+- You're clearing the correct table
+- You have backups if needed
+- You understand the data will be lost
+
+### No Undo
+Once executed, CLEAR cannot be undone. The records are permanently deleted from both memory and the persistence file.
+
+### Export Before Clear
+Best practice: Export data before clearing if you might need it later:
+```eli
+READ users { FIELDS: *; };
+EXPORT "users_backup.json";
+CLEAR users;
+```
+
+## Performance Notes
+
+- CLEAR is fast - it simply empties the records list
+- No record-by-record deletion
+- Single persistence save operation
+- Efficient even for tables with millions of records
+
+## Related Commands
+
+- [TABLE](/api/table) - Create table schema (required before CLEAR)
+- [ADD](/api/add) - Add new records after clearing
+- [READ](/api/read) - Verify table is empty after CLEAR
+- [EXPORT](/api/export) - Backup data before clearing
+
+## Notes
+
+- Table names are case-sensitive
+- CLEAR statement must end with a semicolon
+- Multiple CLEAR commands can be executed in sequence
+- CLEAR on an already-empty table succeeds (no error)
+- After CLEAR, READ will show "Total: 0 registro(s)."
+- The table schema remains accessible for future ADD operations

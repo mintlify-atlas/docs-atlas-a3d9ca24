@@ -1,0 +1,458 @@
+---
+title: 'Interprete'
+description: 'Main interpreter class for executing ELI NoSQL operations'
+---
+
+## Overview
+
+The `Interprete` class is the core execution engine of ELI NoSQL. It manages database state, executes commands, and coordinates operations between the parser and the data model classes.
+
+**Package:** `Modelo`
+
+**Location:** `src/Modelo/Interprete.java`
+
+## Class Structure
+
+```java
+public class Interprete
+```
+
+The Interprete class maintains global state for:
+- Active databases and tables
+- Query results
+- Output console messages
+- Current execution context
+
+## Core Methods
+
+### State Management
+
+#### iniciar
+
+```java
+public static void iniciar()
+```
+
+Clears the state before each execution. Resets output buffer and query results.
+
+**Usage:**
+```java
+Interprete.iniciar();
+```
+
+#### getSalida
+
+```java
+public static String getSalida()
+```
+
+Returns all console output generated during execution.
+
+**Returns:** String containing execution logs and results
+
+**Usage:**
+```java
+String output = Interprete.getSalida();
+```
+
+---
+
+## Database Operations
+
+### crearBaseDatos
+
+```java
+public static void crearBaseDatos(String nombre, String ruta)
+```
+
+Creates a new database or uses an existing one if already loaded.
+
+<ParamField path="nombre" type="String" required>
+  Name of the database to create
+</ParamField>
+
+<ParamField path="ruta" type="String">
+  File path for JSON persistence. If null or empty, uses `{nombre}.json` as default
+</ParamField>
+
+**Behavior:**
+- If database exists: Sets it as active and logs "Usando base existente"
+- If new: Creates database, sets persistence path, and loads from JSON if file exists
+
+**Example:**
+```java
+Interprete.crearBaseDatos("mi_base", "/data/mi_base.json");
+Interprete.crearBaseDatos("otra_base", null); // Uses otra_base.json
+```
+
+### usarBaseDatos
+
+```java
+public static void usarBaseDatos(String nombre)
+```
+
+Sets the active database for subsequent operations.
+
+<ParamField path="nombre" type="String" required>
+  Name of the database to activate
+</ParamField>
+
+**Example:**
+```java
+Interprete.usarBaseDatos("mi_base");
+```
+
+---
+
+## Table Operations
+
+### crearTabla
+
+```java
+public static void crearTabla(String nombre)
+```
+
+Creates a new table in the active database.
+
+<ParamField path="nombre" type="String" required>
+  Name of the table to create
+</ParamField>
+
+**Errors:**
+- Logs error if no active database
+- Skips creation if table already exists (loaded from JSON)
+
+### agregarCampo
+
+```java
+public static void agregarCampo(String campo, String tipo)
+```
+
+Adds a field definition to the current table being created.
+
+<ParamField path="campo" type="String" required>
+  Field name
+</ParamField>
+
+<ParamField path="tipo" type="String" required>
+  Data type: `int`, `float`, `string`, `bool`, `array`, `object`
+</ParamField>
+
+### finalizarTabla
+
+```java
+public static void finalizarTabla()
+```
+
+Completes table creation. Resets internal `tablaActual` state.
+
+---
+
+## Record Operations
+
+### insertarRegistro
+
+```java
+public static void insertarRegistro(String tabla, Map<String, Object> valores)
+```
+
+Inserts a record into the specified table with validation.
+
+<ParamField path="tabla" type="String" required>
+  Target table name
+</ParamField>
+
+<ParamField path="valores" type="Map<String, Object>" required>
+  Field-value pairs for the record
+</ParamField>
+
+**Validation:**
+- Checks active database exists
+- Verifies table exists
+- Validates all fields are provided (complete record)
+- Validates data types match schema
+
+**Auto-persistence:** Automatically saves to JSON after successful insertion
+
+**Example:**
+```java
+Map<String, Object> datos = new LinkedHashMap<>();
+datos.put("nombre", "Juan");
+datos.put("edad", 30);
+Interprete.insertarRegistro("usuarios", datos);
+```
+
+### leerTabla
+
+```java
+public static void leerTabla(String tabla, List<String> campos, String filtroExpr)
+```
+
+Reads and displays records from a table with optional filtering.
+
+<ParamField path="tabla" type="String" required>
+  Table name to query
+</ParamField>
+
+<ParamField path="campos" type="List<String>">
+  List of field names to display. Use `["*"]` or null for all fields
+</ParamField>
+
+<ParamField path="filtroExpr" type="String">
+  Filter expression (e.g., "edad > 25", "nombre == \"Juan\"")
+</ParamField>
+
+**Features:**
+- Stores results in `ultimaConsulta` for export
+- Supports complex filter expressions with AND/OR/NOT
+- Formats output in tabular format
+- Displays row count
+
+### actualizarRegistros
+
+```java
+public static void actualizarRegistros(String tabla, 
+                                        Map<String, Object> nuevoValores,
+                                        String filtroExpr)
+```
+
+Updates records matching the filter expression.
+
+<ParamField path="tabla" type="String" required>
+  Table name
+</ParamField>
+
+<ParamField path="nuevoValores" type="Map<String, Object>" required>
+  Field-value pairs to update
+</ParamField>
+
+<ParamField path="filtroExpr" type="String">
+  Filter expression. If null, updates all records
+</ParamField>
+
+**Validation:**
+- Verifies fields exist in schema
+- Validates data types
+- Auto-saves to JSON after update
+
+### limpiarTabla
+
+```java
+public static void limpiarTabla(String tabla)
+```
+
+Removes all records from a table while preserving the table structure (schema).
+
+<ParamField path="tabla" type="String" required>
+  Table name to clear
+</ParamField>
+
+---
+
+## Query and Export
+
+### exportar
+
+```java
+public static void exportar(String archivo)
+```
+
+Exports the last query results to a JSON file.
+
+<ParamField path="archivo" type="String" required>
+  Output file path
+</ParamField>
+
+**JSON Structure:**
+```json
+{
+  "table": "nombre_tabla",
+  "fields": {
+    "campo1": "tipo1",
+    "campo2": "tipo2"
+  },
+  "records": [
+    {"campo1": valor1, "campo2": valor2},
+    ...
+  ]
+}
+```
+
+**Example:**
+```java
+Interprete.leerTabla("usuarios", null, "edad > 25");
+Interprete.exportar("usuarios_filtrados.json");
+```
+
+---
+
+## Parser Helper Methods
+
+These methods support the parser during command execution:
+
+### iniciarAdd / ejecutarAdd
+
+```java
+public static void iniciarAdd()
+public static void ejecutarAdd(String tabla)
+```
+
+Prepares and executes ADD operations. `iniciarAdd()` clears the value buffer, `ejecutarAdd()` commits the insertion.
+
+### agregarValor
+
+```java
+public static void agregarValor(String campo, Object valor)
+```
+
+Adds a field-value pair to the current ADD operation buffer.
+
+### ejecutarRead
+
+```java
+public static void ejecutarRead(String tabla)
+```
+
+Executes a READ operation using accumulated field list and filter.
+
+### agregarCampoRead
+
+```java
+public static void agregarCampoRead(String campo)
+```
+
+Adds a field name to the current READ operation.
+
+### establecerFiltro
+
+```java
+public static void establecerFiltro(String filtro)
+```
+
+Sets the filter expression for the current READ/UPDATE operation.
+
+### ejecutarUpdate
+
+```java
+public static void ejecutarUpdate(String tabla)
+```
+
+Executes an UPDATE operation using accumulated SET values and filter.
+
+### agregarSet
+
+```java
+public static void agregarSet(String campo, Object valor)
+```
+
+Adds a field-value pair to the current UPDATE operation with validation.
+
+---
+
+## Filter Expression Evaluation
+
+### evaluarFiltro
+
+```java
+public static boolean evaluarFiltro(Registro r, String expr)
+```
+
+Evaluates a filter expression against a record.
+
+<ParamField path="r" type="Registro" required>
+  Record to test
+</ParamField>
+
+<ParamField path="expr" type="String" required>
+  Filter expression
+</ParamField>
+
+**Supported Operators:**
+- Relational: `==`, `!=`, `>`, `<`, `>=`, `<=`
+- Logical: `&&` (AND), `||` (OR), `!` (NOT)
+- Grouping: `(`, `)`
+
+**Examples:**
+```java
+evaluarFiltro(registro, "edad > 25");
+evaluarFiltro(registro, "nombre == \"Juan\" && edad >= 18");
+evaluarFiltro(registro, "!(activo == false)");
+```
+
+---
+
+## Type Validation
+
+### validarTipo
+
+```java
+private static boolean validarTipo(Tabla tabla, String campo, Object valor)
+```
+
+Validates that a value matches the expected field type.
+
+**Type Mappings:**
+- `int` → `Integer`
+- `float` → `Double`, `Float`, `Integer`
+- `string` → `String`
+- `bool` → `Boolean`
+- `array` → `List`
+
+---
+
+## Persistence
+
+The Interprete handles automatic JSON persistence:
+
+- **Auto-save** after: `insertarRegistro`, `actualizarRegistros`, `limpiarTabla`
+- **Auto-load** during: `crearBaseDatos` (if JSON file exists)
+
+### JSON Format
+
+Database files use the following structure:
+
+```json
+{
+  "database": "nombre",
+  "tables": {
+    "tabla1": {
+      "schema": {
+        "campo1": "tipo1",
+        "campo2": "tipo2"
+      },
+      "records": [
+        {"campo1": valor1, "campo2": valor2}
+      ]
+    }
+  }
+}
+```
+
+---
+
+## Error Handling
+
+Errors are logged via `logError()` which:
+1. Appends to output buffer with "ERROR: " prefix
+2. Reports to `Reportes.agregarError()` for error tracking
+3. Does not throw exceptions (soft error handling)
+
+**Common Errors:**
+- "No hay base de datos activa"
+- "La tabla '...' no existe"
+- "Registro incompleto"
+- "Tipo incorrecto en campo '...'"
+- "Campo '...' no existe en la tabla"
+
+---
+
+## Thread Safety
+
+<Warning>
+The Interprete class uses static state and is **not thread-safe**. It is designed for single-threaded script execution.
+</Warning>
+
+## See Also
+
+- [BaseDatos, Tabla, Registro](/api/java/modelo) - Data model classes
+- [Lexer, Parser](/api/java/analisis) - Analysis components

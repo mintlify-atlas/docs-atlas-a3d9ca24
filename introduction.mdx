@@ -1,0 +1,113 @@
+---
+title: Introduction
+description: Welcome to ELI NoSQL - A custom database language compiler and IDE
+---
+
+# Welcome to ELI NoSQL
+
+ELI NoSQL is a custom NoSQL database language with a full-featured compiler and integrated development environment. Built with Java, JFlex, and CUP, it provides a complete solution for learning compiler construction while working with a practical database system.
+
+## What is ELI?
+
+ELI (Educational Language Interpreter) is a domain-specific language designed for NoSQL database operations. It features:
+
+- **Custom Syntax** - Intuitive commands for database operations (DATABASE, TABLE, ADD, READ, UPDATE, CLEAR, EXPORT)
+- **Rich Data Types** - Support for int, float, string, bool, array, and object types
+- **Powerful Filtering** - Filter expressions with relational and logical operators
+- **JSON Persistence** - Automatic serialization and deserialization of database state
+- **Full IDE** - Swing-based editor with syntax highlighting, drag-and-drop, and real-time error reporting
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Custom Language" icon="code" href="/language/syntax">
+    Learn the ELI syntax and write your first database commands
+  </Card>
+  <Card title="Swing IDE" icon="window" href="/ide/overview">
+    Explore the full-featured development environment
+  </Card>
+  <Card title="Lexical Analysis" icon="magnifying-glass" href="/architecture/lexer">
+    Understand how JFlex tokenizes your code
+  </Card>
+  <Card title="Parsing" icon="sitemap" href="/architecture/parser">
+    Dive into CUP-based syntactic analysis
+  </Card>
+</CardGroup>
+
+## Architecture Overview
+
+ELI is built on industry-standard compiler tools:
+
+- **JFlex** - Generates the lexical analyzer from `.jflex` specification
+- **CUP** - Generates the parser from `.cup` grammar definition  
+- **Custom Interpreter** - Executes parsed commands and manages in-memory database
+- **JSON Persistence** - Stores database state using `json-simple` library
+
+```java Compilador.java
+// The IDE orchestrates the compilation pipeline
+StringReader reader = new StringReader(codigo);
+Lexer  lexer  = new Lexer(reader);
+Parser parser = new Parser(lexer);
+parser.parse();
+```
+
+## Quick Example
+
+Here's a taste of what ELI code looks like:
+
+```eli example.code
+## Create a database with JSON persistence
+DATABASE university STORE AT "university.json";
+USE university;
+
+## Define a table schema
+TABLE students {
+    id: int,
+    name: string,
+    age: int,
+    gpa: float
+};
+
+## Insert records
+ADD students {
+    id: 1,
+    name: "Alice Johnson",
+    age: 20,
+    gpa: 3.8
+};
+
+## Query with filters
+READ students FIELDS name, gpa FILTER gpa >= 3.5;
+
+## Update records
+UPDATE students SET gpa = 4.0 FILTER name == "Alice Johnson";
+
+## Export results
+EXPORT "top_students.json";
+```
+
+## Use Cases
+
+ELI is perfect for:
+
+- **Learning Compiler Design** - Study lexical analysis, parsing, and interpretation
+- **Prototyping NoSQL Schemas** - Quickly model and test database structures
+- **Educational Projects** - Understand language implementation from scratch
+- **Database Experimentation** - Try different data models with minimal setup
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up ELI on your machine
+  </Card>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Write your first ELI program in 5 minutes
+  </Card>
+  <Card title="Language Guide" icon="book" href="/language/syntax">
+    Master the ELI syntax
+  </Card>
+  <Card title="API Reference" icon="brackets-curly" href="/api/database">
+    Explore all available commands
+  </Card>
+</CardGroup>

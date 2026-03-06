@@ -1,0 +1,571 @@
+---
+title: 'Data Model Classes'
+description: 'Core data structures for ELI NoSQL: BaseDatos, Tabla, and Registro'
+---
+
+## Overview
+
+The `Modelo` package contains the fundamental data structures that represent databases, tables, and records in ELI NoSQL.
+
+**Package:** `Modelo`
+
+**Location:** `src/Modelo/`
+
+---
+
+# BaseDatos
+
+## Description
+
+Represents a database containing multiple tables with JSON persistence support.
+
+**Location:** `src/Modelo/BaseDatos.java`
+
+## Class Structure
+
+```java
+public class BaseDatos
+```
+
+### Fields
+
+```java
+private String nombre
+private String rutaPersistencia
+private Map<String, Tabla> tablas
+```
+
+## Constructor
+
+### BaseDatos
+
+```java
+public BaseDatos(String nombre)
+```
+
+Creates a new database instance.
+
+<ParamField path="nombre" type="String" required>
+  Name of the database
+</ParamField>
+
+**Default Behavior:**
+- Sets `rutaPersistencia` to `{nombre}.json`
+- Initializes empty `LinkedHashMap` for tables (preserves insertion order)
+
+**Example:**
+```java
+BaseDatos bd = new BaseDatos("mi_base");
+// rutaPersistencia = "mi_base.json"
+```
+
+---
+
+## Table Management Methods
+
+### agregarTabla
+
+```java
+public void agregarTabla(Tabla t)
+```
+
+Adds a table to the database.
+
+<ParamField path="t" type="Tabla" required>
+  Table instance to add
+</ParamField>
+
+**Example:**
+```java
+Tabla usuarios = new Tabla("usuarios");
+bd.agregarTabla(usuarios);
+```
+
+### getTabla
+
+```java
+public Tabla getTabla(String nombre)
+```
+
+Retrieves a table by name.
+
+<ParamField path="nombre" type="String" required>
+  Table name
+</ParamField>
+
+**Returns:** `Tabla` instance or `null` if not found
+
+**Example:**
+```java
+Tabla t = bd.getTabla("usuarios");
+if (t != null) {
+    // Use table
+}
+```
+
+### existeTabla
+
+```java
+public boolean existeTabla(String nombre)
+```
+
+Checks if a table exists in the database.
+
+<ParamField path="nombre" type="String" required>
+  Table name to check
+</ParamField>
+
+**Returns:** `true` if table exists, `false` otherwise
+
+### getTablas
+
+```java
+public Map<String, Tabla> getTablas()
+```
+
+Returns the complete map of tables.
+
+**Returns:** `Map<String, Tabla>` with table names as keys
+
+**Example:**
+```java
+for (Map.Entry<String, Tabla> entry : bd.getTablas().entrySet()) {
+    System.out.println("Table: " + entry.getKey());
+}
+```
+
+---
+
+## Persistence Methods
+
+### getRutaPersistencia
+
+```java
+public String getRutaPersistencia()
+```
+
+Returns the JSON file path for this database.
+
+**Returns:** String file path
+
+### setRutaPersistencia
+
+```java
+public void setRutaPersistencia(String ruta)
+```
+
+Sets a custom persistence path.
+
+<ParamField path="ruta" type="String" required>
+  File path for JSON storage
+</ParamField>
+
+**Example:**
+```java
+bd.setRutaPersistencia("/data/custom_path.json");
+```
+
+---
+
+## Utility Methods
+
+### getNombre
+
+```java
+public String getNombre()
+```
+
+Returns the database name.
+
+### toString
+
+```java
+@Override
+public String toString()
+```
+
+Provides a string representation of the database.
+
+**Format:** `BaseDatos{nombre, tablas=[tabla1, tabla2, ...]}`
+
+---
+
+# Tabla
+
+## Description
+
+Represents a table with a schema (field definitions) and a collection of records.
+
+**Location:** `src/Modelo/Tabla.java`
+
+## Class Structure
+
+```java
+public class Tabla
+```
+
+### Fields
+
+```java
+private String nombre
+private Map<String, String> schema  // field name → data type
+private List<Registro> registros
+```
+
+## Constructor
+
+### Tabla
+
+```java
+public Tabla(String nombre)
+```
+
+Creates a new table.
+
+<ParamField path="nombre" type="String" required>
+  Table name
+</ParamField>
+
+**Initialization:**
+- `schema`: Empty `LinkedHashMap` (preserves field order)
+- `registros`: Empty `ArrayList`
+
+**Example:**
+```java
+Tabla usuarios = new Tabla("usuarios");
+```
+
+---
+
+## Schema Methods
+
+### agregarCampo
+
+```java
+public void agregarCampo(String nombre, String tipo)
+```
+
+Adds a field definition to the table schema.
+
+<ParamField path="nombre" type="String" required>
+  Field name
+</ParamField>
+
+<ParamField path="tipo" type="String" required>
+  Data type: `int`, `float`, `string`, `bool`, `array`, `object`
+</ParamField>
+
+**Example:**
+```java
+usuarios.agregarCampo("nombre", "string");
+usuarios.agregarCampo("edad", "int");
+usuarios.agregarCampo("activo", "bool");
+```
+
+### getSchema
+
+```java
+public Map<String, String> getSchema()
+```
+
+Returns the table schema.
+
+**Returns:** `Map<String, String>` mapping field names to data types
+
+**Example:**
+```java
+Map<String, String> schema = usuarios.getSchema();
+for (Map.Entry<String, String> field : schema.entrySet()) {
+    System.out.println(field.getKey() + ": " + field.getValue());
+}
+```
+
+---
+
+## Record Management Methods
+
+### agregarRegistro
+
+```java
+public void agregarRegistro(Registro r)
+```
+
+Adds a record to the table.
+
+<ParamField path="r" type="Registro" required>
+  Record instance to add
+</ParamField>
+
+**Example:**
+```java
+Registro r = new Registro();
+r.setCampo("nombre", "Juan");
+r.setCampo("edad", 30);
+usuarios.agregarRegistro(r);
+```
+
+### getRegistros
+
+```java
+public List<Registro> getRegistros()
+```
+
+Returns all records in the table.
+
+**Returns:** `List<Registro>`
+
+**Example:**
+```java
+for (Registro r : usuarios.getRegistros()) {
+    System.out.println(r);
+}
+```
+
+### limpiarRegistros
+
+```java
+public void limpiarRegistros()
+```
+
+Removes all records from the table. Schema is preserved.
+
+**Example:**
+```java
+usuarios.limpiarRegistros();
+// Table structure intact, all data removed
+```
+
+---
+
+## Utility Methods
+
+### getNombre
+
+```java
+public String getNombre()
+```
+
+Returns the table name.
+
+### toString
+
+```java
+@Override
+public String toString()
+```
+
+Provides a string representation of the table.
+
+**Format:** `Tabla{nombre, schema={campo1=tipo1, ...}, registros=N}`
+
+---
+
+# Registro
+
+## Description
+
+Represents a single record (row) in a table. Stores field values as key-value pairs.
+
+**Location:** `src/Modelo/Registro.java`
+
+## Class Structure
+
+```java
+public class Registro
+```
+
+### Fields
+
+```java
+private Map<String, Object> campos
+```
+
+## Constructor
+
+### Registro
+
+```java
+public Registro()
+```
+
+Creates an empty record.
+
+**Initialization:** Empty `LinkedHashMap` for campos (preserves field order)
+
+**Example:**
+```java
+Registro r = new Registro();
+```
+
+---
+
+## Data Methods
+
+### setCampo
+
+```java
+public void setCampo(String nombre, Object valor)
+```
+
+Sets the value for a field.
+
+<ParamField path="nombre" type="String" required>
+  Field name
+</ParamField>
+
+<ParamField path="valor" type="Object" required>
+  Field value (Integer, Double, String, Boolean, List, Map, or null)
+</ParamField>
+
+**Example:**
+```java
+Registro r = new Registro();
+r.setCampo("nombre", "Ana");
+r.setCampo("edad", 25);
+r.setCampo("activo", true);
+r.setCampo("tags", Arrays.asList("admin", "user"));
+```
+
+### getCampo
+
+```java
+public Object getCampo(String nombre)
+```
+
+Retrieves the value of a field.
+
+<ParamField path="nombre" type="String" required>
+  Field name
+</ParamField>
+
+**Returns:** `Object` value or `null` if field doesn't exist
+
+**Example:**
+```java
+String nombre = (String) r.getCampo("nombre");
+Integer edad = (Integer) r.getCampo("edad");
+```
+
+### getCampos
+
+```java
+public Map<String, Object> getCampos()
+```
+
+Returns all field-value pairs.
+
+**Returns:** `Map<String, Object>` containing all fields
+
+**Example:**
+```java
+for (Map.Entry<String, Object> entry : r.getCampos().entrySet()) {
+    System.out.println(entry.getKey() + ": " + entry.getValue());
+}
+```
+
+---
+
+## Utility Methods
+
+### toString
+
+```java
+@Override
+public String toString()
+```
+
+Provides a string representation of the record.
+
+**Format:** `{campo1=valor1, campo2=valor2, ...}`
+
+---
+
+## Usage Example: Complete Workflow
+
+```java
+// Create database
+BaseDatos bd = new BaseDatos("tienda");
+bd.setRutaPersistencia("/data/tienda.json");
+
+// Create table
+Tabla productos = new Tabla("productos");
+productos.agregarCampo("id", "int");
+productos.agregarCampo("nombre", "string");
+productos.agregarCampo("precio", "float");
+productos.agregarCampo("disponible", "bool");
+
+// Add table to database
+bd.agregarTabla(productos);
+
+// Create and insert records
+Registro r1 = new Registro();
+r1.setCampo("id", 1);
+r1.setCampo("nombre", "Laptop");
+r1.setCampo("precio", 999.99);
+r1.setCampo("disponible", true);
+productos.agregarRegistro(r1);
+
+Registro r2 = new Registro();
+r2.setCampo("id", 2);
+r2.setCampo("nombre", "Mouse");
+r2.setCampo("precio", 25.50);
+r2.setCampo("disponible", false);
+productos.agregarRegistro(r2);
+
+// Query records
+for (Registro r : productos.getRegistros()) {
+    if ((Boolean) r.getCampo("disponible")) {
+        System.out.println(r.getCampo("nombre") + ": $" + r.getCampo("precio"));
+    }
+}
+
+// Clear table
+productos.limpiarRegistros();
+```
+
+---
+
+## Data Type Support
+
+### Supported Types
+
+| Type | Java Class | Example |
+|------|------------|----------|
+| `int` | `Integer` | `42` |
+| `float` | `Double`, `Float` | `3.14` |
+| `string` | `String` | `"hello"` |
+| `bool` | `Boolean` | `true`, `false` |
+| `array` | `List` | `[1, 2, 3]` |
+| `object` | `Map` | `{"key": "value"}` |
+
+---
+
+## Design Patterns
+
+### LinkedHashMap Usage
+
+All classes use `LinkedHashMap` for ordered collections:
+- **BaseDatos.tablas**: Preserves table creation order
+- **Tabla.schema**: Maintains field definition order
+- **Registro.campos**: Keeps field insertion order
+
+This ensures consistent output formatting and predictable iteration.
+
+### Separation of Concerns
+
+- **BaseDatos**: Container for tables, persistence path management
+- **Tabla**: Schema definition and record collection
+- **Registro**: Individual record data storage
+
+---
+
+## Thread Safety
+
+<Warning>
+None of these classes are thread-safe. They are designed for single-threaded use within the Interprete execution context.
+</Warning>
+
+## See Also
+
+- [Interprete](/api/java/interprete) - Main interpreter class
+- [Analysis Components](/api/java/analisis) - Lexer and Parser

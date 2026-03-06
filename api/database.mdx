@@ -1,0 +1,135 @@
+---
+title: 'DATABASE'
+description: 'Creates or loads a database with optional JSON persistence'
+---
+
+## Description
+
+The `DATABASE` command creates a new database or loads an existing one from a JSON file. Databases serve as containers for tables and manage data persistence. If a database with the specified name already exists in the current session, it becomes the active database.
+
+## Syntax
+
+```eli
+DATABASE identifier { }
+
+DATABASE identifier {
+  STORE AT "path/to/file.json";
+}
+```
+
+## Parameters
+
+<ParamField path="identifier" type="string" required>
+  The name of the database. Must be a valid identifier.
+</ParamField>
+
+<ParamField path="STORE AT" type="string">
+  Optional path to a JSON file for persistence. If specified, the database will:
+  - Load existing data from the file if it exists
+  - Automatically save changes to this file after any data modification
+  
+  The path should be enclosed in double quotes.
+</ParamField>
+
+## Return Value
+
+This command does not return a value. It prints a status message:
+- `"Base de datos 'name' creada."` - When creating a new database
+- `"Usando base existente 'name'."` - When the database already exists
+- `"BD 'name' cargada desde 'path' (N tabla(s))."` - When loading from JSON
+
+## Behavior
+
+1. **New Database**: If the database name doesn't exist, creates a new empty database
+2. **Existing Database**: If the database already exists in memory, switches to it
+3. **Persistence**: If a STORE AT path is provided:
+   - Attempts to load existing data from the JSON file
+   - Sets the path for automatic saves on subsequent operations
+4. **Active Database**: The created/loaded database becomes the active database for subsequent operations
+
+## Examples
+
+### Create a database without persistence
+
+```eli
+DATABASE mydb { }
+```
+
+Creates an in-memory database named `mydb`. Data will not be saved to disk.
+
+### Create a database with JSON persistence
+
+```eli
+DATABASE store {
+  STORE AT "data/store.json";
+}
+```
+
+Creates a database named `store` that:
+- Loads existing data from `data/store.json` if the file exists
+- Automatically saves all changes to `data/store.json`
+
+### Load an existing database
+
+```eli
+DATABASE store {
+  STORE AT "data/store.json";
+}
+```
+
+If `data/store.json` exists with previously saved data, all tables and records are automatically loaded into memory.
+
+## Error Cases
+
+### File loading errors
+
+If the JSON file specified in STORE AT cannot be read or is malformed:
+```
+ERROR: Error cargando JSON: [error message]
+```
+
+The database is still created but starts empty.
+
+### File saving errors
+
+If subsequent operations cannot write to the persistence file:
+```
+ERROR: Error guardando JSON: [error message]
+```
+
+Data modifications are still applied in memory but not persisted.
+
+## JSON Persistence Format
+
+When using STORE AT, the database is saved in the following JSON structure:
+
+```json
+{
+  "database": "store",
+  "tables": {
+    "users": {
+      "schema": {
+        "id": "int",
+        "name": "string"
+      },
+      "records": [
+        {"id": 1, "name": "Alice"},
+        {"id": 2, "name": "Bob"}
+      ]
+    }
+  }
+}
+```
+
+## Related Commands
+
+- [TABLE](/api/table) - Create tables within the database
+- [USE](/api/use) - Switch between multiple databases (if implemented)
+
+## Notes
+
+- Database names are case-sensitive
+- Multiple databases can exist in the same session
+- Only one database can be active at a time
+- All data modification commands (ADD, UPDATE, CLEAR) automatically trigger a save to the persistence file if configured
+- The persistence file is created automatically if it doesn't exist when first writing data

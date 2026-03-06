@@ -1,0 +1,828 @@
+---
+title: 'Interpreter & Execution Engine'
+description: 'Command execution, in-memory database model, and JSON persistence'
+---
+
+## Overview
+
+The interpreter (`Modelo.Interprete`) is the execution engine of ELI NoSQL. It receives commands from the parser via semantic actions and executes them immediately against an in-memory database model. It also handles persistence through JSON serialization.
+
+**Location:** `src/Modelo/Interprete.java`
+
+## Architecture
+
+### Execution Model
+
+ELI NoSQL uses an **interpreter pattern** rather than a traditional compiler:
+
+```
+Parser Semantic Actions
+         |
+         v
+    Interprete.method()
+         |
+         v
+   In-Memory Database
+         |
+         v
+    JSON Persistence
+```
+
+Commands are executed **immediately** during parsing—there is no intermediate representation (IR) or abstract syntax tree (AST).
+
+### Global State
+
+The interpreter maintains global state (Interprete.java:22-28):
+
+```java
+private static Map<String, BaseDatos> bases   = new LinkedHashMap<>();
+private static BaseDatos bdActiva = null;
+private static List<Registro> ultimaConsulta = new ArrayList<>();
+private static String ultimaTablaConsulta = null;
+private static StringBuilder salida = new StringBuilder();
+```
+
+- **`bases`** - All databases by name
+- **`bdActiva`** - Currently active database
+- **`ultimaConsulta`** - Last query results (for `export`)
+- **`salida`** - Output buffer for console
+
+### Temporary Buffers
+
+During parsing, the interpreter accumulates values in temporary buffers (Interprete.java:299-305):
+
+```java
+private static String tablaActual = null;
+private static Map<String,Object> valoresActuales = new LinkedHashMap<>();
+private static List<String> camposReadActual = new ArrayList<>();
+private static String filtroActual = null;
+private static Map<String,Object> setActual = new LinkedHashMap<>();
+```
+
+These buffers are populated as the parser processes each clause, then consumed when the command completes.
+
+## In-Memory Database Model
+
+The database is represented by three core classes:
+
+### BaseDatos (Database)
+
+**Location:** `src/Modelo/BaseDatos.java`
+
+```java
+public class BaseDatos {
+    private String nombre;
+    private String rutaPersistencia;  // JSON file path
+    private Map<String, Tabla> tablas;
+
+    public BaseDatos(String nombre) {
+        this.nombre = nombre;
+        this.rutaPersistencia = nombre + ".json";
+        this.tablas = new LinkedHashMap<>();
+    }
+
+    public void agregarTabla(Tabla t) {
+        tablas.put(t.getNombre(), t);
+    }
+
+    public Tabla getTabla(String nombre) {
+        return tablas.get(nombre);
+    }
+}
+```
+
+**Key features:**
+- Default persistence path: `<name>.json`
+- Can override with `store at` clause
+- Maintains map of tables
+
+### Tabla (Table)
+
+**Location:** `src/Modelo/Tabla.java`
+
+```java
+public class Tabla {
+    private String nombre;
+    private Map<String, String> schema;     // field → type
+    private List<Registro> registros;
+
+    public void agregarCampo(String nombre, String tipo) {
+        schema.put(nombre, tipo);
+    }
+
+    public void agregarRegistro(Registro r) {
+        registros.add(r);
+    }
+
+    public void limpiarRegistros() {
+        registros.clear();
+    }
+}
+```
+
+**Key features:**
+- Schema stores field names and types
+- Registros (records) stored in ordered list
+- Clear operation preserves schema
+
+### Registro (Record/Row)
+
+**Location:** `src/Modelo/Registro.java`
+
+```java
+public class Registro {
+    private Map<String, Object> campos;
+
+    public void setCampo(String nombre, Object valor) {
+        campos.put(nombre, valor);
+    }
+
+    public Object getCampo(String nombre) {
+        return campos.get(nombre);
+    }
+
+    public Map<String, Object> getCampos() {
+        return campos;
+    }
+}
+```
+
+**Key features:**
+- Flexible key-value storage
+- Supports primitive types, arrays, and objects
+- No type enforcement at this level (handled by Interprete)
+
+## Command Execution
+
+### DATABASE Command
+
+**Method:** `crearBaseDatos(String nombre, String ruta)` (Interprete.java:47-64)
+
+```java
+public static void crearBaseDatos(String nombre, String ruta) {
+    if(bases.containsKey(nombre)){
+        bdActiva = bases.get(nombre);
+        log("Usando base existente '"+nombre+"'.");
+        return;
+    }
+
+    BaseDatos bd = new BaseDatos(nombre);
+
+    if (ruta != null && !ruta.isEmpty()) {
+        bd.setRutaPersistencia(ruta);
+    }
+    bases.put(nombre, bd);
+    log("Base de datos '" + nombre + "' creada.");
+    cargarDesdeJSON(bd);  // Load existing data if file exists
+}
+```
+
+**Behavior:**
+- If database exists, activates it
+- Creates new database if not found
+- Sets custom path if provided
+- Loads data from JSON if file exists
+
+### USE Command
+
+**Method:** `usarBaseDatos(String nombre)` (Interprete.java:67-74)
+
+```java
+public static void usarBaseDatos(String nombre) {
+    if (!bases.containsKey(nombre)) {
+        logError("La base de datos '" + nombre + "' no existe.");
+        return;
+    }
+    bdActiva = bases.get(nombre);
+    log("Usando base de datos: " + nombre);
+}
+```
+
+**Behavior:**
+- Switches active database
+- All subsequent commands operate on this database
+
+### TABLE Command
+
+**Methods:**
+- `crearTabla(String nombre)` (Interprete.java:77-89)
+- `agregarCampo(String campo, String tipo)` (Interprete.java:316-321)
+- `finalizarTabla()` (Interprete.java:311-313)
+
+```java
+public static void crearTabla(String nombre) {
+    if (bdActiva == null) {
+        logError("No hay base de datos activa. Usa 'use nombreBD;' primero.");
+        return;
+    }
+    if (!bdActiva.existeTabla(nombre)) {
+        Tabla t = new Tabla(nombre);
+        bdActiva.agregarTabla(t);
+        log("Tabla '" + nombre + "' creada en '" + bdActiva.getNombre() + "'.");
+    }
+    tablaActual = nombre;
+}
+
+public static void agregarCampo(String campo, String tipo){
+    if(tablaActual != null){
+        agregarCampoTabla(tablaActual, campo, tipo);
+    }
+}
+```
+
+**Execution flow:**
+1. Parser reduces `TABLE IDENTIFIER` → calls `crearTabla()`
+2. Parser reduces each `field_def` → calls `agregarCampo()`
+3. Parser completes `table_decl` → calls `finalizarTabla()`
+
+### ADD Command (Insert)
+
+**Methods:**
+- `iniciarAdd()` (Interprete.java:326-328)
+- `agregarValor(String campo, Object valor)` (Interprete.java:337-340)
+- `ejecutarAdd(String tabla)` (Interprete.java:330-335)
+- `insertarRegistro(String tabla, Map<String, Object> valores)` (Interprete.java:100-128)
+
+```java
+public static void iniciarAdd(){
+    valoresActuales.clear();
+}
+
+public static void agregarValor(String campo, Object valor){
+    valoresActuales.put(campo, valor);
+}
+
+public static void ejecutarAdd(String tabla){
+    insertarRegistro(tabla, valoresActuales);
+    valoresActuales.clear();
+}
+
+public static void insertarRegistro(String tabla, Map<String, Object> valores) {
+    // ... validation ...
+    
+    // Validate field count
+    if(valores.size() != t.getSchema().size()){
+        logError("Registro incompleto.");
+        return;
+    }
+    
+    Registro r = new Registro();
+    for (Map.Entry<String, Object> e : valores.entrySet()) {
+        if(!validarTipo(t, e.getKey(), e.getValue())){
+            logError("Tipo incorrecto en campo '"+e.getKey()+"'");
+            return;
+        }
+        r.setCampo(e.getKey(), e.getValue());
+    }
+    t.agregarRegistro(r);
+    log("Registro insertado en '" + tabla + "': " + valores);
+    guardarJSON(bdActiva);  // Auto-save
+}
+```
+
+**Validation:**
+- All schema fields must be provided
+- Type checking via `validarTipo()`
+- Automatic JSON persistence
+
+### READ Command (Query)
+
+**Methods:**
+- `agregarCampoRead(String campo)` (Interprete.java:352-355)
+- `establecerFiltro(String filtro)` (Interprete.java:357-360)
+- `ejecutarRead(String tabla)` (Interprete.java:346-350)
+- `leerTabla(String tabla, List<String> campos, String filtroExpr)` (Interprete.java:130-182)
+
+```java
+public static void leerTabla(String tabla, List<String> campos,
+                              String filtroExpr) {
+    // ... get table ...
+
+    ultimaConsulta.clear();
+    ultimaTablaConsulta = tabla;
+
+    List<Registro> resultados = new ArrayList<>();
+
+    for (Registro r : t.getRegistros()) {
+        if (filtroExpr == null || evaluarFiltro(r, filtroExpr)) {
+            resultados.add(r);
+            ultimaConsulta.add(r);
+        }
+    }
+
+    // Determine fields to display
+    List<String> camposMostrar = campos;
+    if (campos == null || campos.isEmpty() ||
+        (campos.size() == 1 && campos.get(0).equals("*"))) {
+        camposMostrar = new ArrayList<>(t.getSchema().keySet());
+    }
+
+    // Print header
+    StringBuilder header = new StringBuilder();
+    for (String c : camposMostrar) {
+        header.append(String.format("%-15s", c));
+    }
+    log(header.toString());
+    
+    // Print rows
+    for (Registro r : resultados) {
+        StringBuilder fila = new StringBuilder();
+        for (String c : camposMostrar) {
+            Object val = r.getCampo(c);
+            fila.append(String.format("%-15s", val != null ? val : "null"));
+        }
+        log(fila.toString());
+    }
+    log("Total: " + resultados.size() + " registro(s).");
+}
+```
+
+**Output format:**
+```
+=== Resultado de READ users ===
+name           age            status         
+-----------------------------------------------
+John           25             active         
+Jane           30             active         
+Total: 2 registro(s).
+```
+
+### UPDATE Command
+
+**Methods:**
+- `agregarSet(String campo, Object valor)` (Interprete.java:375-397)
+- `ejecutarUpdate(String tabla)` (Interprete.java:366-373)
+- `actualizarRegistros(String tabla, Map<String, Object> nuevoValores, String filtroExpr)` (Interprete.java:186-227)
+
+```java
+public static void actualizarRegistros(String tabla,
+                  Map<String, Object> nuevoValores,
+                  String filtroExpr) {
+    // ... get table ...
+    
+    // Validate fields and types
+    for (Map.Entry<String, Object> e : nuevoValores.entrySet()) {
+        String campo = e.getKey();
+        Object valor = e.getValue();
+        if (!t.getSchema().containsKey(campo)) {
+            logError("Campo '" + campo + "' no existe en la tabla.");
+            return;
+        }
+        if (!validarTipo(t, campo, valor)) {
+            logError("Tipo incorrecto en UPDATE campo " + campo);
+            return;
+        }
+    }
+    
+    int contador = 0;
+    for (Registro r : t.getRegistros()) {
+        if (filtroExpr == null || evaluarFiltro(r, filtroExpr)) {
+            for (Map.Entry<String, Object> e : nuevoValores.entrySet()) {
+                r.setCampo(e.getKey(), e.getValue());
+            }
+            contador++;
+        }
+    }
+    log("UPDATE: " + contador + " registro(s) actualizado(s) en '" + tabla + "'.");
+    guardarJSON(bdActiva);  // Auto-save
+}
+```
+
+### CLEAR Command
+
+**Method:** `limpiarTabla(String tabla)` (Interprete.java:231-245)
+
+```java
+public static void limpiarTabla(String tabla) {
+    if (bdActiva == null) {
+        logError("No hay base de datos activa.");
+        return;
+    }
+    Tabla t = bdActiva.getTabla(tabla);
+    if (t == null) {
+        logError("La tabla '" + tabla + "' no existe.");
+        return;
+    }
+    t.limpiarRegistros();
+    log("Tabla '" + tabla + "' vaciada (estructura conservada).");
+    guardarJSON(bdActiva);  // Auto-save
+}
+```
+
+**Behavior:**
+- Deletes all records
+- Preserves table schema
+- Triggers auto-save
+
+### EXPORT Command
+
+**Method:** `exportar(String archivo)` (Interprete.java:248-293)
+
+```java
+public static void exportar(String archivo) {
+    if (ultimaConsulta == null) {
+        logError("No hay consulta previa para exportar.");
+        return;
+    }
+
+    Tabla t = bdActiva.getTabla(ultimaTablaConsulta);
+    if (t == null) return;
+
+    try {
+        JSONObject root = new JSONObject();
+        root.put("table", ultimaTablaConsulta);
+
+        // Schema with types
+        JSONObject fields = new JSONObject();
+        for (Map.Entry<String, String> e : t.getSchema().entrySet()) {
+            fields.put(e.getKey(), e.getValue());
+        }
+        root.put("fields", fields);
+
+        // Records
+        JSONArray records = new JSONArray();
+        for (Registro r : ultimaConsulta) {
+            JSONObject rec = new JSONObject();
+            for (Map.Entry<String, Object> e : r.getCampos().entrySet()) {
+                rec.put(e.getKey(), e.getValue());
+            }
+            records.add(rec);
+        }
+        root.put("records", records);
+
+        // Write file
+        try (FileWriter fw = new FileWriter(archivo)) {
+            fw.write(root.toJSONString());
+        }
+        log("Exportado a '" + archivo + "' correctamente.");
+    } catch (Exception e) {
+        logError("Error al exportar: " + e.getMessage());
+    }
+}
+```
+
+**Export format:**
+```json
+{
+  "table": "users",
+  "fields": {
+    "name": "string",
+    "age": "int",
+    "status": "string"
+  },
+  "records": [
+    {"name": "John", "age": 25, "status": "active"},
+    {"name": "Jane", "age": 30, "status": "active"}
+  ]
+}
+```
+
+## Filter Expression Evaluation
+
+The filter evaluator parses and executes filter expressions at runtime.
+
+**Method:** `evaluarFiltro(Registro r, String expr)` (Interprete.java:519-551)
+
+```java
+public static boolean evaluarFiltro(Registro r, String expr) {
+    if (expr == null || expr.trim().isEmpty()) return true;
+    expr = expr.trim();
+
+    // Remove outer parentheses
+    if (expr.startsWith("(") && expr.endsWith(")")) {
+        return evaluarFiltro(r, expr.substring(1, expr.length() - 1));
+    }
+
+    // OR (lowest precedence)
+    int idx = buscarOperadorBinario(expr, "||");
+    if (idx >= 0) {
+        String izq = expr.substring(0, idx).trim();
+        String der = expr.substring(idx + 2).trim();
+        return evaluarFiltro(r, izq) || evaluarFiltro(r, der);
+    }
+
+    // AND
+    idx = buscarOperadorBinario(expr, "&&");
+    if (idx >= 0) {
+        String izq = expr.substring(0, idx).trim();
+        String der = expr.substring(idx + 2).trim();
+        return evaluarFiltro(r, izq) && evaluarFiltro(r, der);
+    }
+
+    // NOT
+    if (expr.startsWith("!")) {
+        return !evaluarFiltro(r, expr.substring(1).trim());
+    }
+
+    // Relational expression
+    return evaluarRelacional(r, expr);
+}
+```
+
+### Relational Evaluation
+
+**Method:** `evaluarRelacional(Registro r, String expr)` (Interprete.java:553-588)
+
+```java
+private static boolean evaluarRelacional(Registro r, String expr) {
+    String[] ops = {">=", "<=", "==", "!=", ">", "<"};
+    for (String op : ops) {
+        int i = expr.indexOf(op);
+        if (i < 0) continue;
+
+        String campo = expr.substring(0, i).trim();
+        String valor = expr.substring(i + op.length()).trim();
+
+        Object valCampo = r.getCampo(campo);
+        if (valCampo == null) return false;
+
+        // String comparison
+        if (valor.startsWith("\"") && valor.endsWith("\"")) {
+            valor = valor.substring(1, valor.length() - 1);
+            return compararStrings(valCampo.toString(), op, valor);
+        }
+
+        // Boolean comparison
+        if (valor.equals("true") || valor.equals("false")) {
+            boolean bVal = Boolean.parseBoolean(valor);
+            boolean bCampo = Boolean.parseBoolean(valCampo.toString());
+            return compararBool(bCampo, op, bVal);
+        }
+
+        // Numeric comparison
+        try {
+            double numVal   = Double.parseDouble(valor);
+            double numCampo = Double.parseDouble(valCampo.toString());
+            return compararNumeros(numCampo, op, numVal);
+        } catch (NumberFormatException e) {
+            return compararStrings(valCampo.toString(), op, valor);
+        }
+    }
+    return false;
+}
+```
+
+**Operator search:** `buscarOperadorBinario(String expr, String op)` (Interprete.java:622-633)
+
+Searches right-to-left while respecting parentheses nesting:
+
+```java
+private static int buscarOperadorBinario(String expr, String op) {
+    int nivel = 0;
+    for (int i = expr.length() - op.length(); i >= 0; i--) {
+        char c = expr.charAt(i);
+        if (c == ')') nivel++;
+        else if (c == '(') nivel--;
+        else if (nivel == 0 && expr.startsWith(op, i)) {
+            return i;
+        }
+    }
+    return -1;
+}
+```
+
+## Type Validation
+
+**Method:** `validarTipo(Tabla tabla, String campo, Object valor)` (Interprete.java:640-670)
+
+```java
+private static boolean validarTipo(Tabla tabla, String campo, Object valor){
+    String tipo = tabla.getSchema().get(campo);
+
+    if(tipo == null){
+        logError("Campo '"+campo+"' no existe en la tabla.");
+        return false;
+    }
+
+    switch(tipo){
+        case "int":
+            return valor instanceof Integer;
+
+        case "float":
+            return valor instanceof Double
+                    || valor instanceof Float
+                    || valor instanceof Integer;
+
+        case "string":
+            return valor instanceof String;
+
+        case "bool":
+            return valor instanceof Boolean;
+
+        case "array":
+            return valor instanceof List;
+    }
+
+    return true;  // "object" or unknown types pass
+}
+```
+
+**Type mappings:**
+- `int` → `Integer`
+- `float` → `Double`, `Float`, or `Integer` (auto-promotion)
+- `string` → `String`
+- `bool` → `Boolean`
+- `array` → `List`
+- `object` → `Map` (no validation)
+
+## JSON Persistence
+
+### Auto-Save
+
+**Method:** `guardarJSON(BaseDatos bd)` (Interprete.java:406-447)
+
+```java
+private static void guardarJSON(BaseDatos bd) {
+    try {
+        JSONObject root = new JSONObject();
+        root.put("database", bd.getNombre());
+
+        JSONObject tablesJson = new JSONObject();
+
+        for (Map.Entry<String, Tabla> entry : bd.getTablas().entrySet()) {
+            Tabla t = entry.getValue();
+            JSONObject tablaJson = new JSONObject();
+
+            // Schema
+            JSONObject schemaJson = new JSONObject();
+            for (Map.Entry<String, String> s : t.getSchema().entrySet()) {
+                schemaJson.put(s.getKey(), s.getValue());
+            }
+            tablaJson.put("schema", schemaJson);
+
+            // Records
+            JSONArray recordsJson = new JSONArray();
+            for (Registro r : t.getRegistros()) {
+                JSONObject recJson = new JSONObject();
+                for (Map.Entry<String, Object> c : r.getCampos().entrySet()) {
+                    recJson.put(c.getKey(), c.getValue());
+                }
+                recordsJson.add(recJson);
+            }
+            tablaJson.put("records", recordsJson);
+
+            tablesJson.put(t.getNombre(), tablaJson);
+        }
+
+        root.put("tables", tablesJson);
+
+        try (FileWriter fw = new FileWriter(bd.getRutaPersistencia())) {
+            fw.write(root.toJSONString());
+        }
+
+    } catch (Exception e) {
+        logError("Error guardando JSON: " + e.getMessage());
+    }
+}
+```
+
+**Persistence triggers:**
+- After `add` (insert)
+- After `update`
+- After `clear`
+
+**File format:**
+```json
+{
+  "database": "mydb",
+  "tables": {
+    "users": {
+      "schema": {
+        "name": "string",
+        "age": "int"
+      },
+      "records": [
+        {"name": "John", "age": 25}
+      ]
+    }
+  }
+}
+```
+
+### Auto-Load
+
+**Method:** `cargarDesdeJSON(BaseDatos bd)` (Interprete.java:454-503)
+
+```java
+private static void cargarDesdeJSON(BaseDatos bd) {
+    File archivo = new File(bd.getRutaPersistencia());
+    if (!archivo.exists()) return;
+
+    try {
+        JSONParser parser = new JSONParser();
+        JSONObject root = (JSONObject) parser.parse(new FileReader(archivo));
+
+        JSONObject tablesJson = (JSONObject) root.get("tables");
+        if (tablesJson == null) return;
+
+        for (Object key : tablesJson.keySet()) {
+            String nombreTabla = (String) key;
+            JSONObject tablaJson = (JSONObject) tablesJson.get(nombreTabla);
+
+            Tabla tabla = new Tabla(nombreTabla);
+
+            // Load schema
+            JSONObject schemaJson = (JSONObject) tablaJson.get("schema");
+            if (schemaJson != null) {
+                for (Object campo : schemaJson.keySet()) {
+                    tabla.agregarCampo((String) campo,
+                                       (String) schemaJson.get(campo));
+                }
+            }
+
+            // Load records
+            JSONArray recordsJson = (JSONArray) tablaJson.get("records");
+            if (recordsJson != null) {
+                for (Object obj : recordsJson) {
+                    JSONObject recJson = (JSONObject) obj;
+                    Registro r = new Registro();
+                    for (Object campo : recJson.keySet()) {
+                        r.setCampo((String) campo, recJson.get(campo));
+                    }
+                    tabla.agregarRegistro(r);
+                }
+            }
+
+            bd.agregarTabla(tabla);
+        }
+
+        log("BD '" + bd.getNombre() + "' cargada desde '" +
+            bd.getRutaPersistencia() + "' (" +
+            bd.getTablas().size() + " tabla(s)).");
+
+    } catch (Exception e) {
+        logError("Error cargando JSON: " + e.getMessage());
+    }
+}
+```
+
+**Load trigger:**
+- When database is created/opened
+
+## Error Handling
+
+The interpreter reports semantic errors:
+
+**Method:** `logError(String msg)` (Interprete.java:678-681)
+
+```java
+private static void logError(String msg){
+    salida.append("ERROR: ").append(msg).append("\n");
+    analisis.Reportes.agregarError("Semantico",msg,0,0);
+}
+```
+
+**Error categories:**
+- **No active database** - Commands require `use <db>` first
+- **Table does not exist** - Referencing undefined table
+- **Field validation** - Missing or extra fields
+- **Type mismatch** - Value doesn't match schema type
+- **Empty query** - Exporting with no previous `read`
+
+## Output Management
+
+The interpreter maintains an output buffer for the IDE console:
+
+**Methods:**
+- `iniciar()` - Clear output buffer before execution
+- `getSalida()` - Return console output
+- `log(String msg)` - Append to output buffer
+
+```java
+public static void iniciar() {
+    salida.setLength(0);
+    ultimaConsulta.clear();
+    ultimaTablaConsulta = null;
+}
+
+public static String getSalida() {
+    return salida.toString();
+}
+
+private static void log(String msg) {
+    salida.append(msg).append("\n");
+    System.out.println(msg);
+}
+```
+
+## Summary
+
+The interpreter provides:
+
+✅ **Immediate execution** - No compilation delay  
+✅ **Type safety** - Schema validation at runtime  
+✅ **Auto-persistence** - Changes saved to JSON automatically  
+✅ **Filter evaluation** - Boolean expressions with full operator support  
+✅ **Console output** - Formatted query results  
+✅ **Error reporting** - Clear semantic error messages  
+
+## Related Components
+
+<CardGroup cols={2}>
+  <Card title="Lexer" icon="text" href="/architecture/lexer">
+    Token generation from source code
+  </Card>
+  <Card title="Parser" icon="brackets-curly" href="/architecture/parser">
+    Grammar rules and semantic actions
+  </Card>
+</CardGroup>

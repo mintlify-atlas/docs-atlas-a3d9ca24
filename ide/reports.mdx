@@ -1,0 +1,314 @@
+---
+title: Reports
+description: Understanding token tables and error reports in the ELI IDE
+---
+
+The Reports panel provides detailed insights into your code's compilation process, showing all recognized tokens and any errors encountered.
+
+## Accessing Reports
+
+Reports are available through the **Reportes** menu after executing your code:
+
+1. Click **Ejecutar → ▶ Ejecutar** to compile your code
+2. Open **Reportes** menu to view:
+   - **Tabla de Tokens** - All recognized language elements
+   - **Tabla de Errores** - Compilation errors
+
+<Warning>
+  You must execute your code before viewing reports. Empty reports will show a message prompting you to run the code first.
+</Warning>
+
+## Token Table
+
+### Overview
+
+The token table displays every lexical element recognized by the compiler, providing insight into how your code is parsed.
+
+### Table Format
+
+```
+_____________________________________________
+|              TABLA DE TOKENS                    |
+_____________________________________________
+#     Lexema               Tipo            Línea    Columna
+────────────────────────────────────────────────────────────
+1     DATABASE             KEYWORD         1        1
+2     universidad          IDENTIFIER      1        10
+3     ;                    SEMICOLON       1        21
+4     TABLE                KEYWORD         3        1
+5     alumnos              IDENTIFIER      3        7
+...
+────────────────────────────────────────────────────────────
+Total: 45 tokens
+```
+
+### Column Descriptions
+
+<ParamField path="#" type="integer">
+  Sequential token number, starting from 1
+</ParamField>
+
+<ParamField path="Lexema" type="string">
+  The actual text from your source code (up to 20 characters displayed)
+</ParamField>
+
+<ParamField path="Tipo" type="string">
+  Token type recognized by the lexer:
+  - `KEYWORD` - Reserved words (DATABASE, TABLE, ADD, READ, etc.)
+  - `IDENTIFIER` - User-defined names
+  - `STRING` - String literals
+  - `INTEGER` - Integer literals
+  - `FLOAT` - Floating-point literals
+  - `BOOLEAN` - true/false values
+  - Punctuation (SEMICOLON, COMMA, LBRACE, RBRACE, etc.)
+</ParamField>
+
+<ParamField path="Línea" type="integer">
+  Line number where the token appears (1-based)
+</ParamField>
+
+<ParamField path="Columna" type="integer">
+  Column number where the token starts (1-based)
+</ParamField>
+
+### Example Token Table
+
+For this code:
+
+```eli
+DATABASE universidad;
+TABLE alumnos {
+  nombre: string
+};
+```
+
+The token table shows:
+
+```
+#     Lexema               Tipo            Línea    Columna
+────────────────────────────────────────────────────────────
+1     DATABASE             KEYWORD         1        1
+2     universidad          IDENTIFIER      1        10
+3     ;                    SEMICOLON       1        21
+4     TABLE                KEYWORD         2        1
+5     alumnos              IDENTIFIER      2        7
+6     {                    LBRACE          2        15
+7     nombre               IDENTIFIER      3        3
+8     :                    COLON           3        9
+9     string               TYPE            3        11
+10    }                    RBRACE          4        1
+11    ;                    SEMICOLON       4        2
+────────────────────────────────────────────────────────────
+Total: 11 tokens
+```
+
+## Error Table
+
+### Overview
+
+The error table reports all issues found during lexical analysis, parsing, and semantic validation.
+
+### Table Format
+
+```
+_____________________________________________
+|              TABLA DE ERRORES                      |
+_____________________________________________
+#     Tipo       Descripción                      Línea    Columna
+────────────────────────────────────────────────────────────
+1     LEXICO     Caracter no reconocido: '@'      5        12
+2     SINTACTICO Falta punto y coma                7        15
+3     SEMANTICO  Tabla 'usuarios' no existe        9        6
+────────────────────────────────────────────────────────────
+Total: 3 errores
+```
+
+### Error Types
+
+<Tabs>
+  <Tab title="Lexical Errors">
+    **LEXICO** errors occur when the scanner encounters invalid characters or malformed tokens.
+    
+    Common lexical errors:
+    - Unrecognized characters: `@`, `#`, `$`
+    - Unterminated strings
+    - Invalid number formats
+    - Unknown symbols
+    
+    Example:
+    ```eli
+    DATABASE test@123;  ## '@' is not a valid character
+    ```
+    
+    Error report:
+    ```
+    1     LEXICO     Caracter no reconocido: '@'      1        13
+    ```
+  </Tab>
+  
+  <Tab title="Syntactic Errors">
+    **SINTACTICO** errors occur when code structure violates grammar rules.
+    
+    Common syntax errors:
+    - Missing semicolons
+    - Mismatched braces
+    - Invalid command order
+    - Missing required keywords
+    
+    Example:
+    ```eli
+    DATABASE universidad
+    TABLE alumnos { nombre: string };  ## Missing semicolon after DATABASE
+    ```
+    
+    Error report:
+    ```
+    1     SINTACTICO Esperado ';' después de DATABASE  2        1
+    ```
+  </Tab>
+  
+  <Tab title="Semantic Errors">
+    **SEMANTICO** errors occur when code is syntactically correct but semantically invalid.
+    
+    Common semantic errors:
+    - Using undefined tables
+    - Type mismatches
+    - Duplicate definitions
+    - Invalid field references
+    
+    Example:
+    ```eli
+    DATABASE universidad;
+    READ usuarios WHERE edad > 18;  ## 'usuarios' table not defined
+    ```
+    
+    Error report:
+    ```
+    1     SEMANTICO  Tabla 'usuarios' no existe        2        6
+    ```
+  </Tab>
+</Tabs>
+
+### Error Column Descriptions
+
+<ParamField path="#" type="integer">
+  Sequential error number
+</ParamField>
+
+<ParamField path="Tipo" type="string">
+  Error category: LEXICO, SINTACTICO, or SEMANTICO
+</ParamField>
+
+<ParamField path="Descripción" type="string">
+  Human-readable error message (up to 35 characters displayed)
+</ParamField>
+
+<ParamField path="Línea" type="integer">
+  Line number where the error occurred
+</ParamField>
+
+<ParamField path="Columna" type="integer">
+  Column number where the error was detected
+</ParamField>
+
+## Interpreting Reports
+
+### No Errors
+
+When compilation succeeds without errors:
+
+```
+_____________________________________________
+|              TABLA DE ERRORES                      |
+_____________________________________________
+#     Tipo       Descripción                      Línea    Columna
+────────────────────────────────────────────────────────────
+ No se encontraron errores.
+────────────────────────────────────────────────────────────
+Total: 0 errores
+```
+
+<Success>
+  Clean compilation! Your code has no lexical, syntactic, or semantic errors.
+</Success>
+
+### Multiple Errors
+
+The compiler continues analyzing after finding errors, reporting as many as possible:
+
+```
+1     LEXICO     Caracter no reconocido: '&'      3        8
+2     SINTACTICO Falta ';' al final                5        15
+3     SEMANTICO  Campo 'email' no existe           7        20
+4     SINTACTICO Falta '}' para cerrar bloque     10        1
+────────────────────────────────────────────────────────────
+Total: 4 errores
+```
+
+<Tip>
+  Fix errors from top to bottom. Earlier errors can sometimes cause cascading issues below.
+</Tip>
+
+## Console Integration
+
+After execution, the console displays a summary:
+
+```
+Análisis completado. Tokens: 45 | Errores: 0
+```
+
+The status bar also shows:
+
+```
+Tokens: 45  |  Errores: 0
+```
+
+## Report Generation Process
+
+Under the hood, reports are generated by the `Reportes` class:
+
+1. **Clearing**: `Reportes.limpiar()` clears previous data
+2. **Lexical analysis**: Lexer calls `Reportes.agregarToken()` for each token
+3. **Error detection**: Analyzers call `Reportes.agregarError()` for issues
+4. **Display**: IDE retrieves data via `Reportes.getTokens()` and `Reportes.getErrores()`
+
+Implementation reference: `/home/daytona/workspace/source/src/analisis/Reportes.java:1`
+
+## Debugging with Reports
+
+<Steps>
+  <Step title="Execute your code">
+    Click **Ejecutar → ▶ Ejecutar** to compile
+  </Step>
+  
+  <Step title="Check error count">
+    Look at console or status bar for error summary
+  </Step>
+  
+  <Step title="View error details">
+    Open **Reportes → Tabla de Errores** to see specific issues
+  </Step>
+  
+  <Step title="Locate the problem">
+    Use line and column numbers to find errors in the editor
+  </Step>
+  
+  <Step title="Fix and re-run">
+    Make corrections and execute again to verify
+  </Step>
+  
+  <Step title="Review tokens (optional)">
+    Check **Tabla de Tokens** to understand how code was parsed
+  </Step>
+</Steps>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Try Examples" icon="code" href="/ide/examples">
+    See complete examples with their reports
+  </Card>
+  <Card title="Learn Language Syntax" icon="book" href="/language/syntax">
+    Master ELI NoSQL syntax to avoid errors
+  </Card>
+</CardGroup>

@@ -1,0 +1,425 @@
+---
+title: 'UPDATE'
+description: 'Updates records matching a filter condition'
+---
+
+## Description
+
+The `UPDATE` command modifies existing records in a table. It can update one or more fields in records that match an optional filter condition. If no filter is provided, all records are updated.
+
+## Syntax
+
+```eli
+UPDATE table_name {
+  SET: field1 = value1, field2 = value2, ...;
+};
+
+UPDATE table_name {
+  SET: field1 = value1, field2 = value2, ...;
+  FILTER: expression;
+};
+```
+
+## Parameters
+
+<ParamField path="table_name" type="string" required>
+  The name of the table to update. Must exist in the active database.
+</ParamField>
+
+<ParamField path="SET" type="assignment list" required>
+  Comma-separated list of field assignments in the format `field = value`.
+  
+  - Fields must exist in the table schema
+  - Values must match the field types
+  - Multiple fields can be updated in one command
+</ParamField>
+
+<ParamField path="FILTER" type="expression">
+  Optional filter expression to select which records to update. Uses the same syntax as READ:
+  - Comparison operators: `==`, `!=`, `>`, `<`, `>=`, `<=`
+  - Logical operators: `&&` (AND), `||` (OR), `!` (NOT)
+  - Parentheses for grouping
+  
+  If omitted, all records in the table are updated.
+</ParamField>
+
+## Return Value
+
+This command does not return data. It prints:
+```
+UPDATE: N registro(s) actualizado(s) en 'table'.
+```
+
+Where N is the number of records that matched the filter and were updated.
+
+The database automatically saves to the persistence file if configured.
+
+## Behavior
+
+1. **Filter Evaluation**: Each record is tested against the filter expression (if provided)
+2. **Field Validation**: SET fields are validated against the table schema
+3. **Type Validation**: Values are validated against declared field types
+4. **Atomic Updates**: Each matching record is updated with all SET values
+5. **Auto-Save**: Changes are automatically persisted to the JSON file if configured
+6. **Zero Matches**: If no records match, the command succeeds with "0 registro(s) actualizado(s)"
+
+## Examples
+
+### Update all records
+
+```eli
+UPDATE users {
+  SET: active = true;
+};
+```
+
+Sets the `active` field to `true` for all users.
+
+### Update with simple filter
+
+```eli
+UPDATE users {
+  SET: active = false;
+  FILTER: id == 5;
+};
+```
+
+Deactivates the user with id 5.
+
+### Update multiple fields
+
+```eli
+UPDATE products {
+  SET: price = 299.99, stock = 0;
+  FILTER: id == 101;
+};
+```
+
+Updates both price and stock for product 101.
+
+### Update with numeric comparison
+
+```eli
+UPDATE products {
+  SET: available = false;
+  FILTER: stock < 10;
+};
+```
+
+Marks products as unavailable when stock is low.
+
+### Update with range filter
+
+```eli
+UPDATE products {
+  SET: price = 99.99;
+  FILTER: price >= 100 && price <= 150;
+};
+```
+
+Discounts all products in the $100-$150 range to $99.99.
+
+### Update with string filter
+
+```eli
+UPDATE users {
+  SET: verified = true;
+  FILTER: email == "alice@example.com";
+};
+```
+
+Verifies a specific user by email address.
+
+### Update with complex logical filter
+
+```eli
+UPDATE orders {
+  SET: status = "cancelled";
+  FILTER: (total < 10 && age > 30) || priority == "low";
+};
+```
+
+Cancels orders that are either (cheap AND old) OR low priority.
+
+### Update with NOT operator
+
+```eli
+UPDATE users {
+  SET: notificationEnabled = false;
+  FILTER: !(active == true);
+};
+```
+
+Disables notifications for inactive users.
+
+### Conditional field update
+
+```eli
+UPDATE products {
+  SET: stock = 100;
+  FILTER: stock == 0;
+};
+```
+
+Restocks products that are out of stock.
+
+### Update boolean flags
+
+```eli
+UPDATE users {
+  SET: active = false, verified = false;
+  FILTER: lastLogin > 365;
+};
+```
+
+Deactivates users inactive for over a year (assuming lastLogin is in days).
+
+## Error Cases
+
+### No active database
+
+```eli
+UPDATE users {
+  SET: active = true;
+};
+```
+
+Results in:
+```
+ERROR: No hay base de datos activa.
+```
+
+Solution: Create/activate a database first.
+
+### Table doesn't exist
+
+```eli
+DATABASE mydb { }
+
+UPDATE users {
+  SET: active = true;
+};
+```
+
+Results in:
+```
+ERROR: La tabla 'users' no existe.
+```
+
+Solution: Create the table before updating.
+
+### Field doesn't exist in schema
+
+```eli
+TABLE users {
+  id: int;
+  name: string;
+}
+
+UPDATE users {
+  SET: email = "test@example.com";
+};
+```
+
+Results in:
+```
+ERROR: Campo 'email' no existe en la tabla.
+```
+
+Solution: Only update fields that exist in the schema:
+```eli
+UPDATE users {
+  SET: name = "Alice";
+};
+```
+
+### Type mismatch
+
+```eli
+TABLE users {
+  id: int;
+  name: string;
+  active: bool;
+}
+
+UPDATE users {
+  SET: active = "yes";
+  FILTER: id == 1;
+};
+```
+
+Results in:
+```
+ERROR: Tipo incorrecto en UPDATE campo active
+```
+
+Solution: Use the correct type (boolean):
+```eli
+UPDATE users {
+  SET: active = true;
+  FILTER: id == 1;
+};
+```
+
+### Multiple type errors
+
+```eli
+UPDATE products {
+  SET: price = "expensive", stock = "many";
+};
+```
+
+Results in:
+```
+ERROR: Tipo incorrecto en UPDATE campo price
+```
+
+The command fails on the first type error encountered.
+
+## Type Validation Rules
+
+SET values must match the field types defined in the table schema:
+
+### int
+Must be an integer literal:
+```eli
+SET: count = 42;      // Valid
+SET: count = 3.14;    // Invalid
+SET: count = "5";     // Invalid
+```
+
+### float
+Accepts both floats and integers:
+```eli
+SET: price = 99.99;   // Valid
+SET: price = 100;     // Valid (auto-converts)
+SET: price = "99";    // Invalid
+```
+
+### string
+Must be a quoted string:
+```eli
+SET: name = "Alice";  // Valid
+SET: name = Alice;    // Invalid
+SET: name = "";       // Valid (empty string)
+```
+
+### bool
+Only `true` or `false` keywords:
+```eli
+SET: active = true;   // Valid
+SET: active = false;  // Valid
+SET: active = 1;      // Invalid
+SET: active = "true"; // Invalid
+```
+
+### array and object
+Currently, UPDATE does not support array and object literals in SET clauses. Only primitive types (int, float, string, bool) can be updated.
+
+## Filter Expression Syntax
+
+The FILTER clause uses the same expression syntax as the READ command. See [READ - Filter Expressions](/api/read#filter-expressions) for complete details.
+
+### Common patterns:
+
+**Single condition:**
+```eli
+FILTER: id == 5
+```
+
+**Range condition:**
+```eli
+FILTER: age >= 18 && age <= 65
+```
+
+**Multiple OR conditions:**
+```eli
+FILTER: status == "active" || status == "pending" || status == "trial"
+```
+
+**Negation:**
+```eli
+FILTER: !(archived == true)
+```
+
+**Complex nested conditions:**
+```eli
+FILTER: (price > 100 && stock > 0) || featured == true
+```
+
+## Update Strategy
+
+### Partial Updates
+You only need to specify the fields you want to change. Other fields remain unchanged:
+
+```eli
+// Original record: {id: 1, name: "Alice", email: "alice@ex.com", active: true}
+
+UPDATE users {
+  SET: email = "newemail@ex.com";
+  FILTER: id == 1;
+};
+
+// Result: {id: 1, name: "Alice", email: "newemail@ex.com", active: true}
+```
+
+### Batch Updates
+Without a FILTER, all records are updated:
+
+```eli
+UPDATE products {
+  SET: discount = true;
+};
+```
+
+This is useful for global changes like adding a sale flag to all products.
+
+### Conditional Updates
+Use filters to implement business logic:
+
+```eli
+// Apply discount to expensive items
+UPDATE products {
+  SET: discounted = true;
+  FILTER: price > 500;
+};
+
+// Restock low-inventory items
+UPDATE products {
+  SET: stock = 100;
+  FILTER: stock < 5;
+};
+```
+
+## Atomicity
+
+Each UPDATE command is atomic:
+- All validations are performed before any record is modified
+- If validation fails, no records are updated
+- If validation passes, all matching records are updated
+- Changes are persisted atomically to the JSON file
+
+## Performance Notes
+
+- All records are scanned when a FILTER is used
+- No indexes - filtering is linear time O(n)
+- Type validation is performed for each SET field
+- Multiple records can be updated in a single command
+- Persistence (JSON save) happens once per command, not per record
+
+## Related Commands
+
+- [READ](/api/read) - Query records with filters (same filter syntax)
+- [ADD](/api/add) - Insert new records
+- [CLEAR](/api/clear) - Remove all records from a table
+- [TABLE](/api/table) - Define table schema and field types
+
+## Notes
+
+- Field names are case-sensitive
+- Multiple fields can be updated in one SET clause
+- SET assignments are separated by commas
+- No increment operators (e.g., `count = count + 1` is not supported)
+- Updates are in-place - original records are modified
+- The filter expression is evaluated on the current (pre-update) values
+- String comparisons in filters are case-sensitive

@@ -1,0 +1,437 @@
+---
+title: 'Syntax Overview'
+description: 'Learn the fundamental syntax rules and structure of the ELI NoSQL language'
+icon: 'code'
+---
+
+## Language Structure
+
+ELI NoSQL is a declarative language designed for managing NoSQL databases with a simple, readable syntax. Every ELI program consists of a series of statements that define databases, tables, and data operations.
+
+### Basic Syntax Rules
+
+<CardGroup cols={2}>
+  <Card title="Case Sensitivity" icon="text">
+    All keywords are **lowercase**. Identifiers are case-sensitive.
+  </Card>
+  <Card title="Statement Termination" icon="semicolon">
+    Every statement must end with a **semicolon** (`;`)
+  </Card>
+  <Card title="Whitespace" icon="space-bar">
+    Spaces, tabs, and newlines are ignored (except in strings)
+  </Card>
+  <Card title="Comments" icon="comment">
+    Single-line (`##`) and multi-line (`#* ... *#`) comments supported
+  </Card>
+</CardGroup>
+
+---
+
+## Comments
+
+ELI supports two types of comments to document your code:
+
+<Tabs>
+  <Tab title="Single-Line">
+    Single-line comments start with `##` and continue to the end of the line.
+
+    ```eli
+    ## This is a single-line comment
+    database mydb { };  ## Create an empty database
+    
+    ## Comments can explain complex logic
+    read users {
+      fields: *;  ## Select all fields
+    };
+    ```
+
+    <Note>
+      The lexer pattern: `"##" [^\r\n]*` matches from `##` to the line terminator.
+    </Note>
+  </Tab>
+
+  <Tab title="Multi-Line">
+    Multi-line comments start with `#*` and end with `*#`.
+
+    ```eli
+    #*
+      This is a multi-line comment
+      Useful for longer explanations
+      or temporarily disabling code blocks
+    *#
+    
+    database store {
+      #* Configuration options can be added here *#
+      store at "data/store.json";
+    };
+    ```
+
+    <Note>
+      The lexer pattern: `"#*" ~"#*"` matches everything between the delimiters.
+    </Note>
+  </Tab>
+</Tabs>
+
+---
+
+## Identifiers
+
+Identifiers are names used for databases, tables, and fields.
+
+### Rules
+
+<AccordionGroup>
+  <Accordion title="Valid Characters">
+    - Must start with a **letter** (`a-z`, `A-Z`) or **underscore** (`_`)
+    - Can contain letters, digits (`0-9`), and underscores
+    - Cannot be a reserved keyword
+
+    **Lexer Pattern:**
+    ```regex
+    [a-zA-Z_][a-zA-Z0-9_]*
+    ```
+  </Accordion>
+
+  <Accordion title="Examples">
+    ```eli
+    ## Valid identifiers
+    database users_db { };
+    table Product123 { };
+    field_name: string;
+    _privateField: int;
+    
+    ## Invalid identifiers
+    123users    ## Cannot start with digit
+    user-name   ## Hyphens not allowed
+    database    ## Reserved keyword
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Reserved Keywords
+
+The following keywords are reserved and cannot be used as identifiers:
+
+<Tabs>
+  <Tab title="Commands">
+    | Keyword | Purpose |
+    |---------|----------|
+    | `database` | Declare a database |
+    | `table` | Define a table |
+    | `use` | Switch active database |
+    | `add` | Insert records |
+    | `read` | Query data |
+    | `update` | Modify records |
+    | `clear` | Empty a table |
+    | `export` | Export query results |
+  </Tab>
+
+  <Tab title="Clauses & Modifiers">
+    | Keyword | Purpose |
+    |---------|----------|
+    | `store` | Specify storage location |
+    | `at` | Path specification |
+    | `fields` | Select fields in queries |
+    | `filter` | Apply conditions |
+    | `set` | Update field values |
+  </Tab>
+
+  <Tab title="Data Types">
+    | Keyword | Purpose |
+    |---------|----------|
+    | `int` | Integer type |
+    | `float` | Floating-point type |
+    | `string` | String type |
+    | `bool` | Boolean type |
+    | `array` | Array type |
+    | `object` | Object/nested document type |
+    | `null` | Null value |
+  </Tab>
+
+  <Tab title="Boolean Literals">
+    | Keyword | Value |
+    |---------|-------|
+    | `true` | Boolean true |
+    | `false` | Boolean false |
+  </Tab>
+</Tabs>
+
+---
+
+## Statement Termination
+
+Every statement in ELI must end with a semicolon (`;`).
+
+```eli
+## Database declaration
+database mydb { };  ## ✓ Semicolon required
+
+## Table definition
+table users {
+  name: string;
+  age: int;
+};  ## ✓ Semicolon after closing brace
+
+## Command statements
+use mydb;  ## ✓ Simple statement
+
+add users {
+  name: "Alice",
+  age: 30
+};  ## ✓ Compound statement
+
+read users { fields: *; };  ## ✓ Nested statement
+```
+
+<Warning>
+  **Missing semicolons** will cause syntax errors. The parser expects a semicolon to mark the end of each statement.
+</Warning>
+
+---
+
+## Delimiters and Operators
+
+### Grouping Delimiters
+
+| Symbol | Name | Usage |
+|--------|------|-------|
+| `{` `}` | Braces | Statement blocks, object literals |
+| `(` `)` | Parentheses | Expression grouping, precedence |
+| `[` `]` | Brackets | Array literals |
+
+### Punctuation
+
+| Symbol | Name | Usage |
+|--------|------|-------|
+| `;` | Semicolon | Statement terminator |
+| `:` | Colon | Type annotation, key-value separator |
+| `,` | Comma | Element separator in lists |
+| `=` | Equals | Assignment in SET clause |
+| `*` | Star | Wildcard (select all fields) |
+
+### Operators
+
+<Tabs>
+  <Tab title="Relational">
+    | Operator | Meaning |
+    |----------|----------|
+    | `==` | Equal to |
+    | `!=` | Not equal to |
+    | `>` | Greater than |
+    | `<` | Less than |
+    | `>=` | Greater than or equal |
+    | `<=` | Less than or equal |
+  </Tab>
+
+  <Tab title="Logical">
+    | Operator | Meaning |
+    |----------|----------|
+    | `&&` | Logical AND |
+    | `||` | Logical OR |
+    | `!` | Logical NOT |
+  </Tab>
+</Tabs>
+
+---
+
+## Literals
+
+Literals are fixed values written directly in code.
+
+### Integer Literals
+
+```eli
+## Valid integers
+0
+42
+1234567
+```
+
+**Lexer Pattern:**
+```regex
+DecInteger = 0 | [1-9][0-9]*
+```
+
+<Note>
+  - Leading zeros are **not allowed** (except for `0` itself)
+  - Negative numbers are handled as expressions (e.g., `-42`)
+</Note>
+
+### Float Literals
+
+```eli
+## Valid floats
+0.0
+3.14
+99.99
+1234.5678
+```
+
+**Lexer Pattern:**
+```regex
+DecFloat = ({DecInteger})"."[0-9]+
+```
+
+<Note>
+  - Decimal point is **required**
+  - At least one digit must follow the decimal point
+  - Scientific notation (e.g., `1e10`) is **not supported**
+</Note>
+
+### String Literals
+
+Strings are enclosed in double quotes with support for escape sequences.
+
+```eli
+## Simple strings
+"Hello, World!"
+"ELI NoSQL"
+""
+
+## Escape sequences
+"Line 1\nLine 2"     ## Newline
+"Tab\tseparated"     ## Tab
+"Quote: \"text\""    ## Escaped quote
+"Path: C:\\data"     ## Escaped backslash
+```
+
+**Supported Escape Sequences:**
+
+| Sequence | Result |
+|----------|--------|
+| `\n` | Newline |
+| `\r` | Carriage return |
+| `\t` | Tab |
+| `\"` | Double quote |
+| `\\` | Backslash |
+
+### Boolean Literals
+
+```eli
+true
+false
+```
+
+These are keywords representing boolean values.
+
+### Null Literal
+
+```eli
+null
+```
+
+Represents the absence of a value.
+
+---
+
+## Program Structure
+
+A typical ELI program follows this structure:
+
+```eli
+## 1. Database Definition
+database myapp {
+  store at "data/myapp.json";
+};
+
+## 2. Table Schema
+table users {
+  id: int;
+  name: string;
+  email: string;
+  active: bool;
+};
+
+## 3. Select Database
+use myapp;
+
+## 4. Data Operations
+add users {
+  id: 1,
+  name: "Alice",
+  email: "alice@example.com",
+  active: true
+};
+
+read users {
+  fields: *;
+  filter: active == true;
+};
+
+update users {
+  set: active = false;
+  filter: id == 1;
+};
+```
+
+<Steps>
+  <Step title="Define the Database">
+    Create a database with optional storage location
+  </Step>
+  <Step title="Define Tables">
+    Specify table schemas with typed fields
+  </Step>
+  <Step title="Activate Database">
+    Use the `use` command to select the working database
+  </Step>
+  <Step title="Perform Operations">
+    Execute ADD, READ, UPDATE, CLEAR, or EXPORT commands
+  </Step>
+</Steps>
+
+---
+
+## Whitespace Handling
+
+ELI ignores most whitespace, allowing flexible formatting:
+
+```eli
+## Compact style
+database db{};table t{id:int;};use db;add t{id:1};
+
+## Expanded style (recommended)
+database db {
+  store at "db.json";
+};
+
+table t {
+  id: int;
+};
+
+use db;
+
+add t {
+  id: 1
+};
+```
+
+**Lexer Pattern:**
+```regex
+LineTerminator  = \r|\n|\r\n
+WhiteSpace      = {LineTerminator} | [ \t\f]
+```
+
+<Tip>
+  Use consistent indentation and spacing for better readability, even though the compiler doesn't require it.
+</Tip>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Types" icon="database" href="/language/data-types">
+    Learn about ELI's type system and literals
+  </Card>
+  <Card title="Commands" icon="terminal" href="/language/commands">
+    Explore all available database commands
+  </Card>
+  <Card title="Expressions" icon="function" href="/language/expressions">
+    Master filter expressions and operators
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/database">
+    Detailed command syntax reference
+  </Card>
+</CardGroup>

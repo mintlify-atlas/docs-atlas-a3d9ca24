@@ -1,0 +1,792 @@
+---
+title: 'Filter Expressions'
+description: 'Learn how to write powerful filter expressions for querying and updating data'
+icon: 'filter'
+---
+
+## Overview
+
+Filter expressions allow you to conditionally select or update records based on field values. They are used in **READ** and **UPDATE** commands to specify which records should be affected.
+
+<CardGroup cols={3}>
+  <Card title="Relational" icon="equals">
+    Compare field values: `==`, `!=`, `>`, `<`, `>=`, `<=`
+  </Card>
+  <Card title="Logical" icon="diagram-venn">
+    Combine conditions: `&&` (AND), `||` (OR), `!` (NOT)
+  </Card>
+  <Card title="Grouping" icon="brackets-round">
+    Control precedence with parentheses: `(...)`
+  </Card>
+</CardGroup>
+
+---
+
+## Basic Syntax
+
+Filter expressions appear in the `filter:` clause of READ and UPDATE commands.
+
+```eli
+read <table> {
+  fields: *;
+  filter: <expression>;
+};
+
+update <table> {
+  set: field = value;
+  filter: <expression>;
+};
+```
+
+### Simple Example
+
+```eli
+## Find active users
+read users {
+  fields: *;
+  filter: active == true;
+};
+
+## Update users over 18
+update users {
+  set: can_vote = true;
+  filter: age >= 18;
+};
+```
+
+---
+
+## Relational Operators
+
+Compare field values against literals or other fields.
+
+<Tabs>
+  <Tab title="Equality">
+    ### Equal To (`==`)
+
+    Test if a field equals a specific value.
+
+    ```eli
+    ## Find user by ID
+    read users {
+      fields: *;
+      filter: id == 5;
+    };
+
+    ## Find active users
+    read users {
+      fields: *;
+      filter: active == true;
+    };
+
+    ## Find by name
+    read users {
+      fields: *;
+      filter: name == "Alice";
+    };
+    ```
+
+    **Type Support:**
+    - Numbers: `age == 30`
+    - Strings: `name == "Alice"` (case-sensitive)
+    - Booleans: `active == true`
+
+    ### Not Equal To (`!=`)
+
+    Test if a field does NOT equal a value.
+
+    ```eli
+    ## Find all users except Alice
+    read users {
+      fields: *;
+      filter: name != "Alice";
+    };
+
+    ## Find inactive users
+    read users {
+      fields: *;
+      filter: active != true;
+    };
+    ```
+  </Tab>
+
+  <Tab title="Comparison">
+    ### Greater Than (`>`)
+
+    ```eli
+    ## Users over 18
+    read users {
+      fields: *;
+      filter: age > 18;
+    };
+
+    ## Expensive products
+    read products {
+      fields: *;
+      filter: price > 100.0;
+    };
+    ```
+
+    ### Less Than (`<`)
+
+    ```eli
+    ## Young users
+    read users {
+      fields: *;
+      filter: age < 21;
+    };
+
+    ## Budget items
+    read products {
+      fields: *;
+      filter: price < 50.0;
+    };
+    ```
+
+    ### Greater Than or Equal (`>=`)
+
+    ```eli
+    ## Adults (inclusive)
+    read users {
+      fields: *;
+      filter: age >= 18;
+    };
+    ```
+
+    ### Less Than or Equal (`<=`)
+
+    ```eli
+    ## Max price filter
+    read products {
+      fields: *;
+      filter: price <= 99.99;
+    };
+    ```
+
+    <Note>
+      Comparison operators (`>`, `<`, `>=`, `<=`) work only with **numeric types** (int, float). Using them with strings or booleans will return `false`.
+    </Note>
+  </Tab>
+
+  <Tab title="Lexer Tokens">
+    Relational operators are defined in `Scanner.jflex:107-119`:
+
+    ```jflex
+    /* ── Operadores relacionales ── */
+    "=="  { return symbol(sym.EQ); }
+    "!="  { return symbol(sym.NEQ); }
+    ">="  { return symbol(sym.GEQ); }
+    "<="  { return symbol(sym.LEQ); }
+    ">"   { return symbol(sym.GT); }
+    "<"   { return symbol(sym.LT); }
+    ```
+
+    **Precedence** (Parser.cup:95):
+    ```cup
+    precedence left EQ, NEQ, GT, LT, GEQ, LEQ;
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Logical Operators
+
+Combine multiple conditions to create complex filters.
+
+<Tabs>
+  <Tab title="AND (&&)">
+    ### Logical AND
+
+    Both conditions must be true.
+
+    ```eli
+    ## Active adults
+    read users {
+      fields: *;
+      filter: active == true && age >= 18;
+    };
+
+    ## Premium products in stock
+    read products {
+      fields: *;
+      filter: price > 100.0 && in_stock == true;
+    };
+
+    ## Range query
+    read users {
+      fields: *;
+      filter: age >= 18 && age <= 65;
+    };
+    ```
+
+    **Truth Table:**
+
+    | Left | Right | Result |
+    |------|-------|--------|
+    | true | true | **true** |
+    | true | false | false |
+    | false | true | false |
+    | false | false | false |
+
+    <Note>
+      AND has **higher precedence** than OR, so `a || b && c` means `a || (b && c)`.
+    </Note>
+  </Tab>
+
+  <Tab title="OR (||)">
+    ### Logical OR
+
+    At least one condition must be true.
+
+    ```eli
+    ## Users named Alice or Bob
+    read users {
+      fields: *;
+      filter: name == "Alice" || name == "Bob";
+    };
+
+    ## Young or old
+    read users {
+      fields: *;
+      filter: age < 18 || age > 65;
+    };
+
+    ## Inactive or unverified
+    read users {
+      fields: *;
+      filter: active == false || verified == false;
+    };
+    ```
+
+    **Truth Table:**
+
+    | Left | Right | Result |
+    |------|-------|--------|
+    | true | true | **true** |
+    | true | false | **true** |
+    | false | true | **true** |
+    | false | false | false |
+  </Tab>
+
+  <Tab title="NOT (!)">
+    ### Logical NOT
+
+    Negates a boolean expression.
+
+    ```eli
+    ## Not active (same as active == false)
+    read users {
+      fields: *;
+      filter: !active;
+    };
+
+    ## Users NOT in age range
+    read users {
+      fields: *;
+      filter: !(age >= 18 && age <= 65);
+    };
+
+    ## Negate complex condition
+    read products {
+      fields: *;
+      filter: !(price > 100.0 || in_stock == false);
+    };
+    ```
+
+    **Truth Table:**
+
+    | Expression | Result |
+    |------------|--------|
+    | true | **false** |
+    | false | **true** |
+
+    <Warning>
+      NOT requires parentheses around complex expressions: `!(a && b)` not `!a && b`.
+    </Warning>
+  </Tab>
+
+  <Tab title="Lexer Tokens">
+    Logical operators are defined in `Scanner.jflex:122-128`:
+
+    ```jflex
+    /* ── Operadores lógicos ── */
+    "&&"  { return symbol(sym.AND); }
+    "||"  { return symbol(sym.OR); }
+    "!"   { return symbol(sym.NOT); }
+    ```
+
+    **Precedence** (Parser.cup:92-94):
+    ```cup
+    precedence left OR;
+    precedence left AND;
+    precedence right NOT;
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Operator Precedence
+
+Operators are evaluated in this order (highest to lowest):
+
+<Steps>
+  <Step title="Parentheses">
+    `(...)` - Highest precedence, evaluated first
+  </Step>
+  <Step title="NOT">
+    `!` - Right-associative unary negation
+  </Step>
+  <Step title="Relational">
+    `==`, `!=`, `>`, `<`, `>=`, `<=` - Comparison operators
+  </Step>
+  <Step title="AND">
+    `&&` - Logical conjunction
+  </Step>
+  <Step title="OR">
+    `||` - Logical disjunction (lowest precedence)
+  </Step>
+</Steps>
+
+### Precedence Examples
+
+<Tabs>
+  <Tab title="Without Parentheses">
+    ```eli
+    ## Expression: age > 18 || name == "Admin" && active == true
+    ## Parsed as: age > 18 || (name == "Admin" && active == true)
+    ## Because AND has higher precedence than OR
+
+    read users {
+      fields: *;
+      filter: age > 18 || name == "Admin" && active == true;
+    };
+    ```
+
+    **Evaluation:**
+    1. `name == "Admin"` → boolean
+    2. `active == true` → boolean
+    3. `(result of 1) && (result of 2)` → boolean
+    4. `age > 18` → boolean
+    5. `(result of 4) || (result of 3)` → final result
+  </Tab>
+
+  <Tab title="With Parentheses">
+    ```eli
+    ## Expression: (age > 18 || name == "Admin") && active == true
+    ## Parentheses override default precedence
+
+    read users {
+      fields: *;
+      filter: (age > 18 || name == "Admin") && active == true;
+    };
+    ```
+
+    **Evaluation:**
+    1. `age > 18` → boolean
+    2. `name == "Admin"` → boolean
+    3. `(result of 1) || (result of 2)` → boolean (due to parentheses)
+    4. `active == true` → boolean
+    5. `(result of 3) && (result of 4)` → final result
+  </Tab>
+
+  <Tab title="NOT Precedence">
+    ```eli
+    ## NOT has high precedence
+    filter: !active && age > 18
+    ## Parsed as: (!active) && (age > 18)
+
+    ## Use parentheses to negate entire expression
+    filter: !(active && age > 18)
+    ```
+  </Tab>
+</Tabs>
+
+<Tip>
+  **Always use parentheses** when combining multiple operators to make your intent explicit and avoid precedence errors.
+</Tip>
+
+---
+
+## Complex Filter Examples
+
+### Multi-Condition Filters
+
+```eli
+## Active adults with email
+read users {
+  fields: name, email, age;
+  filter: active == true && age >= 18 && email != "";
+};
+
+## Premium or sale items in stock
+read products {
+  fields: name, price, category;
+  filter: (category == "premium" || on_sale == true) && in_stock == true;
+};
+
+## Age range exclusion
+read users {
+  fields: *;
+  filter: !(age >= 13 && age <= 17);
+};
+```
+
+### Nested Logical Conditions
+
+```eli
+## (Active premium users) OR (trial users under 30)
+read users {
+  fields: *;
+  filter: (active == true && plan == "premium") || (plan == "trial" && age < 30);
+};
+
+## Products: (Electronics over $100) OR (Books under $20)
+read products {
+  fields: name, category, price;
+  filter: (category == "electronics" && price > 100.0) || 
+          (category == "books" && price < 20.0);
+};
+```
+
+### Negation Patterns
+
+```eli
+## Not (inactive or unverified)
+## Equivalent to: active AND verified
+read users {
+  fields: *;
+  filter: !(active == false || verified == false);
+};
+
+## Users outside age range 18-65
+read users {
+  fields: *;
+  filter: !(age >= 18 && age <= 65);
+};
+```
+
+---
+
+## Expression Grammar
+
+The parser builds filter expressions using these grammar rules from `Parser.cup:217-267`:
+
+<Accordion title="OR Expression">
+  ```cup
+  expr_filter
+    ::= expr_filter:a OR expr_and:b
+        {: RESULT = "(" + a + "||" + b + ")"; :}
+    |   expr_and:a
+        {: RESULT = a; :}
+    ;
+  ```
+
+  **Behavior:** OR has lowest precedence, so it's evaluated last.
+</Accordion>
+
+<Accordion title="AND Expression">
+  ```cup
+  expr_and
+    ::= expr_and:a AND expr_not:b
+        {: RESULT = "(" + a + "&&" + b + ")"; :}
+    |   expr_not:a
+        {: RESULT = a; :}
+    ;
+  ```
+
+  **Behavior:** AND has higher precedence than OR.
+</Accordion>
+
+<Accordion title="NOT Expression">
+  ```cup
+  expr_not
+    ::= NOT expr_not:a
+        {: RESULT = "!" + a; :}
+    |   LPAREN expr_filter:a RPAREN
+        {: RESULT = "(" + a + ")"; :}
+    |   expr_rel:a
+        {: RESULT = a; :}
+    ;
+  ```
+
+  **Behavior:** NOT is right-associative and can negate other NOT expressions.
+</Accordion>
+
+<Accordion title="Relational Expression">
+  ```cup
+  expr_rel
+    ::= campo:c rel_op:o val:v
+        {: RESULT = c + o + v; :}
+    ;
+
+  campo
+    ::= IDENTIFIER:i
+        {: RESULT = i; :}
+    ;
+
+  val
+    ::= INT_LITERAL:n       {: RESULT = String.valueOf(n); :}
+    |   FLOAT_LITERAL:f     {: RESULT = String.valueOf(f); :}
+    |   STRING_LITERAL:s    {: RESULT = "\"" + s + "\""; :}
+    |   TRUE                {: RESULT = "true"; :}
+    |   FALSE               {: RESULT = "false"; :}
+    |   NULL                {: RESULT = "null"; :}
+    ;
+
+  rel_op
+    ::= EQ  {: RESULT = "=="; :}
+    |   NEQ {: RESULT = "!="; :}
+    |   GT  {: RESULT = ">"; :}
+    |   LT  {: RESULT = "<"; :}
+    |   GEQ {: RESULT = ">="; :}
+    |   LEQ {: RESULT = "<="; :}
+    ;
+  ```
+</Accordion>
+
+---
+
+## Filter Evaluation
+
+The interpreter evaluates filters using recursive descent parsing. See `Interprete.java:509-633` for implementation.
+
+### Evaluation Process
+
+<Steps>
+  <Step title="Parse Expression">
+    The parser converts the filter into a string representation with parentheses.
+  </Step>
+  <Step title="Evaluate OR">
+    Split on `||` (respecting parentheses), evaluate left and right, return `left || right`.
+  </Step>
+  <Step title="Evaluate AND">
+    Split on `&&`, evaluate left and right, return `left && right`.
+  </Step>
+  <Step title="Evaluate NOT">
+    If starts with `!`, evaluate the rest and negate the result.
+  </Step>
+  <Step title="Evaluate Relational">
+    Compare field value against literal using the operator.
+  </Step>
+</Steps>
+
+### Core Evaluation Method
+
+```java
+public static boolean evaluarFiltro(Registro r, String expr) {
+    if (expr == null || expr.trim().isEmpty()) return true;
+    expr = expr.trim();
+
+    // Remove outer parentheses
+    if (expr.startsWith("(") && expr.endsWith(")")) {
+        return evaluarFiltro(r, expr.substring(1, expr.length() - 1));
+    }
+
+    // OR (lowest precedence)
+    int idx = buscarOperadorBinario(expr, "||");
+    if (idx >= 0) {
+        String izq = expr.substring(0, idx).trim();
+        String der = expr.substring(idx + 2).trim();
+        return evaluarFiltro(r, izq) || evaluarFiltro(r, der);
+    }
+
+    // AND
+    idx = buscarOperadorBinario(expr, "&&");
+    if (idx >= 0) {
+        String izq = expr.substring(0, idx).trim();
+        String der = expr.substring(idx + 2).trim();
+        return evaluarFiltro(r, izq) && evaluarFiltro(r, der);
+    }
+
+    // NOT
+    if (expr.startsWith("!")) {
+        return !evaluarFiltro(r, expr.substring(1).trim());
+    }
+
+    // Relational expression: campo OP valor
+    return evaluarRelacional(r, expr);
+}
+```
+
+### Type-Specific Comparisons
+
+<Tabs>
+  <Tab title="Numbers">
+    ```java
+    private static boolean compararNumeros(double a, String op, double b) {
+        switch (op) {
+            case "==": return a == b;
+            case "!=": return a != b;
+            case ">":  return a > b;
+            case "<":  return a < b;
+            case ">=": return a >= b;
+            case "<=": return a <= b;
+            default:   return false;
+        }
+    }
+    ```
+
+    Supports all relational operators.
+  </Tab>
+
+  <Tab title="Strings">
+    ```java
+    private static boolean compararStrings(String a, String op, String b) {
+        switch (op) {
+            case "==": return a.equals(b);
+            case "!=": return !a.equals(b);
+            default:   return false;
+        }
+    }
+    ```
+
+    Only `==` and `!=` are supported (case-sensitive).
+  </Tab>
+
+  <Tab title="Booleans">
+    ```java
+    private static boolean compararBool(boolean a, String op, boolean b) {
+        switch (op) {
+            case "==": return a == b;
+            case "!=": return a != b;
+            default:   return false;
+        }
+    }
+    ```
+
+    Only `==` and `!=` are supported.
+  </Tab>
+</Tabs>
+
+---
+
+## Common Patterns
+
+<AccordionGroup>
+  <Accordion title="Range Queries">
+    ```eli
+    ## Age between 18 and 65 (inclusive)
+    filter: age >= 18 && age <= 65
+
+    ## Price in range
+    filter: price >= 10.0 && price <= 100.0
+    ```
+  </Accordion>
+
+  <Accordion title="Multiple Values (OR)">
+    ```eli
+    ## Name is Alice, Bob, or Charlie
+    filter: name == "Alice" || name == "Bob" || name == "Charlie"
+
+    ## Category is electronics or books
+    filter: category == "electronics" || category == "books"
+    ```
+  </Accordion>
+
+  <Accordion title="Exclusion (NOT)">
+    ```eli
+    ## Everyone except Alice
+    filter: name != "Alice"
+
+    ## Not in range
+    filter: !(age >= 13 && age <= 17)
+
+    ## Not (inactive or unverified)
+    filter: !(active == false || verified == false)
+    ```
+  </Accordion>
+
+  <Accordion title="Compound Conditions">
+    ```eli
+    ## Active users over 18 with verified email
+    filter: active == true && age >= 18 && verified == true
+
+    ## Premium or trial users who are active
+    filter: (plan == "premium" || plan == "trial") && active == true
+    ```
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Limitations
+
+<Warning>
+  **Current limitations:**
+
+  - No arithmetic in expressions (`age + 1 > 18` is invalid)
+  - No field-to-field comparison (`age > min_age` is invalid)
+  - No string operations (case-insensitive, contains, regex)
+  - No null checks (`email != null` uses literal `null` keyword)
+  - Arrays and objects cannot be filtered directly
+</Warning>
+
+---
+
+## Usage in Commands
+
+<Tabs>
+  <Tab title="READ with Filter">
+    ```eli
+    ## Query active users
+    read users {
+      fields: name, email, age;
+      filter: active == true && age >= 18;
+    };
+
+    ## Query with complex filter
+    read products {
+      fields: *;
+      filter: (category == "electronics" && price > 100.0) || 
+              (category == "books" && price < 20.0);
+    };
+
+    ## Read without filter (all records)
+    read users {
+      fields: *;
+    };
+    ```
+  </Tab>
+
+  <Tab title="UPDATE with Filter">
+    ```eli
+    ## Update specific user
+    update users {
+      set: active = false;
+      filter: id == 5;
+    };
+
+    ## Bulk update with complex filter
+    update products {
+      set: on_sale = true, discount = 0.2;
+      filter: category == "clearance" && stock_count > 0;
+    };
+
+    ## Update all records (no filter)
+    update users {
+      set: last_updated = "2024-01-01";
+    };
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="READ Command" icon="book-open" href="/api/read">
+    Use filters to query data
+  </Card>
+  <Card title="UPDATE Command" icon="pen" href="/api/update">
+    Update records conditionally
+  </Card>
+  <Card title="Data Types" icon="brackets-curly" href="/language/data-types">
+    Understand type-specific comparisons
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/ide/examples">
+    See real-world filter examples
+  </Card>
+</CardGroup>

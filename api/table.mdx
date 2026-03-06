@@ -1,0 +1,217 @@
+---
+title: 'TABLE'
+description: 'Defines a table schema with fields and types'
+---
+
+## Description
+
+The `TABLE` command creates a new table with a defined schema in the active database. Tables store structured data as records, where each record must conform to the defined field types.
+
+## Syntax
+
+```eli
+TABLE identifier {
+  field1: type1;
+  field2: type2;
+  ...
+}
+```
+
+## Parameters
+
+<ParamField path="identifier" type="string" required>
+  The name of the table. Must be a valid identifier.
+</ParamField>
+
+<ParamField path="field" type="string" required>
+  Field name in the table schema. Multiple fields are defined as `field: type;` statements within the braces.
+</ParamField>
+
+<ParamField path="type" type="string" required>
+  Data type for the field. Supported types:
+  
+  - `int` - Integer numbers
+  - `float` - Floating-point numbers (also accepts integers)
+  - `string` - Text strings
+  - `bool` - Boolean values (true/false)
+  - `array` - Arrays/lists of values
+  - `object` - Nested objects/maps
+</ParamField>
+
+## Return Value
+
+This command does not return a value. It prints:
+```
+Tabla 'name' creada en 'database'.
+```
+
+## Behavior
+
+1. **Active Database Required**: A database must be active (created with DATABASE command) before creating tables
+2. **Schema Definition**: All fields and their types are defined when the table is created
+3. **Empty Table**: New tables start with no records
+4. **Persistence**: If the active database has persistence enabled, the table schema is saved
+5. **Duplicate Tables**: If a table with the same name already exists (e.g., loaded from JSON), it is not overwritten
+
+## Data Types
+
+### int
+Integer numbers. Values must be whole numbers.
+
+```eli
+age: int;
+count: int;
+```
+
+### float
+Floating-point numbers. Accepts both integers and decimal numbers.
+
+```eli
+price: float;
+temperature: float;
+```
+
+### string
+Text values. Must be enclosed in double quotes when inserting data.
+
+```eli
+name: string;
+email: string;
+```
+
+### bool
+Boolean values: `true` or `false`.
+
+```eli
+active: bool;
+verified: bool;
+```
+
+### array
+Arrays/lists that can contain multiple values.
+
+```eli
+tags: array;
+items: array;
+```
+
+### object
+Nested objects with key-value pairs.
+
+```eli
+metadata: object;
+settings: object;
+```
+
+## Examples
+
+### Simple user table
+
+```eli
+DATABASE mydb { }
+
+TABLE users {
+  id: int;
+  name: string;
+  email: string;
+  active: bool;
+}
+```
+
+Creates a table with four fields of different types.
+
+### Product catalog table
+
+```eli
+DATABASE store {
+  STORE AT "store.json";
+}
+
+TABLE products {
+  id: int;
+  name: string;
+  price: float;
+  stock: int;
+  tags: array;
+  available: bool;
+}
+```
+
+Creates a product table with mixed types including an array field.
+
+### Table with complex types
+
+```eli
+TABLE orders {
+  orderId: int;
+  customer: string;
+  items: array;
+  metadata: object;
+  total: float;
+  completed: bool;
+}
+```
+
+Demonstrates using complex types like arrays and objects.
+
+## Error Cases
+
+### No active database
+
+```eli
+TABLE users {
+  id: int;
+  name: string;
+}
+```
+
+Results in:
+```
+ERROR: No hay base de datos activa. Usa 'use nombreBD;' primero.
+```
+
+Solution: Create or activate a database first:
+```eli
+DATABASE mydb { }
+TABLE users { id: int; name: string; }
+```
+
+### Invalid type
+
+Using an unsupported type in the schema will cause parser errors.
+
+## Type Validation
+
+Once a table is created, all INSERT and UPDATE operations validate that:
+1. All required fields are provided
+2. Values match the declared types
+3. No extra fields are included
+
+Type validation errors:
+```
+ERROR: Tipo incorrecto en campo 'fieldname'
+```
+
+## Schema Immutability
+
+After a table is created:
+- The schema cannot be modified
+- Fields cannot be added or removed
+- Types cannot be changed
+- To modify the schema, you must CLEAR the table or create a new table
+
+## Related Commands
+
+- [DATABASE](/api/database) - Create a database before creating tables
+- [ADD](/api/add) - Insert records into the table
+- [READ](/api/read) - Query table data
+- [UPDATE](/api/update) - Modify existing records
+- [CLEAR](/api/clear) - Remove all records (preserves schema)
+
+## Notes
+
+- Table names are case-sensitive
+- Field names are case-sensitive
+- Each field definition must end with a semicolon
+- The order of fields in the schema determines the display order in READ results
+- Tables loaded from JSON files preserve their existing schema and data

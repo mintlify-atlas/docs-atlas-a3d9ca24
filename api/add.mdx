@@ -1,0 +1,336 @@
+---
+title: 'ADD'
+description: 'Inserts a record into a table'
+---
+
+## Description
+
+The `ADD` command inserts a new record into a table. All fields defined in the table schema must be provided, and values must match the declared types.
+
+## Syntax
+
+```eli
+ADD table_name {
+  field1: value1,
+  field2: value2,
+  ...
+};
+```
+
+## Parameters
+
+<ParamField path="table_name" type="string" required>
+  The name of the table to insert the record into. The table must exist in the active database.
+</ParamField>
+
+<ParamField path="field" type="string" required>
+  Field name from the table schema. All fields defined in the schema must be provided.
+</ParamField>
+
+<ParamField path="value" type="any" required>
+  Value for the field. Must match the type declared in the table schema:
+  - `int`: Integer literal (e.g., `42`)
+  - `float`: Number literal (e.g., `3.14`, `10`)
+  - `string`: Quoted string (e.g., `"Alice"`)
+  - `bool`: `true` or `false`
+  - `array`: Array literal (e.g., `[1, 2, 3]`)
+  - `object`: Object literal (e.g., `{key: "value"}`)
+  - `null`: Null value
+</ParamField>
+
+## Return Value
+
+This command does not return a value. On success, it prints:
+```
+Registro insertado en 'table': {field1=value1, field2=value2, ...}
+```
+
+The database automatically saves to the persistence file if configured.
+
+## Behavior
+
+1. **Complete Records**: All fields in the table schema must be provided
+2. **Type Validation**: Each value is validated against the schema type
+3. **Order Independence**: Fields can be specified in any order
+4. **Auto-Save**: If persistence is enabled, the record is automatically saved to the JSON file
+5. **No Duplicates Check**: The command does not check for duplicate records
+
+## Examples
+
+### Insert a simple record
+
+```eli
+DATABASE mydb { }
+
+TABLE users {
+  id: int;
+  name: string;
+  email: string;
+  active: bool;
+}
+
+ADD users {
+  id: 1,
+  name: "Alice",
+  email: "alice@example.com",
+  active: true
+};
+```
+
+Inserts a user record with all required fields.
+
+### Insert multiple records
+
+```eli
+TABLE products {
+  id: int;
+  name: string;
+  price: float;
+  stock: int;
+}
+
+ADD products {
+  id: 1,
+  name: "Laptop",
+  price: 999.99,
+  stock: 15
+};
+
+ADD products {
+  id: 2,
+  name: "Mouse",
+  price: 25.50,
+  stock: 100
+};
+```
+
+Adds multiple product records sequentially.
+
+### Insert record with array and object
+
+```eli
+TABLE orders {
+  orderId: int;
+  customer: string;
+  items: array;
+  metadata: object;
+  total: float;
+}
+
+ADD orders {
+  orderId: 1001,
+  customer: "Alice",
+  items: ["laptop", "mouse", "keyboard"],
+  metadata: {priority: "high", notes: "Express delivery"},
+  total: 1150.49
+};
+```
+
+Demonstrates complex types including nested arrays and objects.
+
+### Insert with null value
+
+```eli
+TABLE contacts {
+  id: int;
+  name: string;
+  phone: string;
+  email: string;
+}
+
+ADD contacts {
+  id: 1,
+  name: "Bob",
+  phone: null,
+  email: "bob@example.com"
+};
+```
+
+Uses `null` for an optional field value.
+
+### Insert with different numeric types
+
+```eli
+TABLE measurements {
+  id: int;
+  temperature: float;
+  count: int;
+}
+
+ADD measurements {
+  id: 1,
+  temperature: 98.6,
+  count: 42
+};
+
+ADD measurements {
+  id: 2,
+  temperature: 100,
+  count: 50
+};
+```
+
+Shows that float fields accept both decimal and integer values.
+
+## Error Cases
+
+### No active database
+
+```eli
+ADD users {
+  id: 1,
+  name: "Alice"
+};
+```
+
+Results in:
+```
+ERROR: No hay base de datos activa.
+```
+
+Solution: Create and activate a database first.
+
+### Table doesn't exist
+
+```eli
+DATABASE mydb { }
+
+ADD users {
+  id: 1,
+  name: "Alice"
+};
+```
+
+Results in:
+```
+ERROR: La tabla 'users' no existe.
+```
+
+Solution: Create the table before inserting records.
+
+### Incomplete record
+
+```eli
+TABLE users {
+  id: int;
+  name: string;
+  email: string;
+}
+
+ADD users {
+  id: 1,
+  name: "Alice"
+};
+```
+
+Results in:
+```
+ERROR: Registro incompleto.
+```
+
+Solution: Provide all required fields:
+```eli
+ADD users {
+  id: 1,
+  name: "Alice",
+  email: "alice@example.com"
+};
+```
+
+### Type mismatch
+
+```eli
+TABLE users {
+  id: int;
+  name: string;
+  active: bool;
+}
+
+ADD users {
+  id: "one",
+  name: "Alice",
+  active: true
+};
+```
+
+Results in:
+```
+ERROR: Tipo incorrecto en campo 'id'
+```
+
+Solution: Use the correct type (integer):
+```eli
+ADD users {
+  id: 1,
+  name: "Alice",
+  active: true
+};
+```
+
+### Extra fields
+
+```eli
+TABLE users {
+  id: int;
+  name: string;
+}
+
+ADD users {
+  id: 1,
+  name: "Alice",
+  age: 30
+};
+```
+
+Results in:
+```
+ERROR: Registro incompleto.
+```
+
+The record is rejected because field count doesn't match the schema.
+
+## Type Validation Rules
+
+### int
+- Must be an integer literal
+- Strings and floats are rejected
+
+### float
+- Accepts float literals (e.g., `3.14`)
+- Accepts integer literals (e.g., `10`)
+- Automatic conversion from int to float
+
+### string
+- Must be enclosed in double quotes
+- Empty strings are valid: `""`
+
+### bool
+- Only `true` or `false` keywords
+- Strings like `"true"` are rejected
+
+### array
+- Syntax: `[element1, element2, ...]`
+- Empty arrays are valid: `[]`
+- Elements can be any valid JSON value
+
+### object
+- Syntax: `{key1: value1, key2: value2, ...}`
+- Empty objects are valid: `{}`
+- Keys are identifiers (unquoted)
+- Values can be any valid JSON value
+
+## Related Commands
+
+- [TABLE](/api/table) - Define the table schema before inserting
+- [READ](/api/read) - Query inserted records
+- [UPDATE](/api/update) - Modify existing records
+- [CLEAR](/api/clear) - Remove all records from the table
+
+## Notes
+
+- Field names are case-sensitive and must match the schema exactly
+- Commas separate field-value pairs
+- The statement must end with a semicolon
+- No auto-increment or default values - all fields must be explicitly provided
+- Records are stored in insertion order
+- The command succeeds atomically - either all validations pass or none

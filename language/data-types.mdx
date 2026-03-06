@@ -1,0 +1,729 @@
+---
+title: 'Data Types'
+description: 'Understanding the type system in ELI NoSQL including primitives, arrays, and objects'
+icon: 'brackets-curly'
+---
+
+## Type System Overview
+
+ELI NoSQL provides a **strongly-typed** schema system inspired by JSON. Every field in a table must declare its type, and the runtime validates all data against these type definitions.
+
+<CardGroup cols={3}>
+  <Card title="6 Core Types" icon="list">
+    int, float, string, bool, array, object
+  </Card>
+  <Card title="Runtime Validation" icon="shield-check">
+    All values checked at insertion and update
+  </Card>
+  <Card title="Null Support" icon="ban">
+    `null` represents missing values
+  </Card>
+</CardGroup>
+
+---
+
+## Primitive Types
+
+### Integer (`int`)
+
+Stores whole numbers without decimal points.
+
+<Tabs>
+  <Tab title="Definition">
+    ```eli
+    table products {
+      id: int;
+      stock_count: int;
+      year: int;
+    };
+    ```
+  </Tab>
+
+  <Tab title="Literal Syntax">
+    ```eli
+    add products {
+      id: 1,
+      stock_count: 500,
+      year: 2024
+    };
+    ```
+
+    **Valid formats:**
+    - `0` - Zero
+    - `42` - Positive integers
+    - `1234567890` - Large numbers
+
+    <Warning>
+      Leading zeros are **not allowed** (except `0` itself). `007` is invalid.
+    </Warning>
+  </Tab>
+
+  <Tab title="Validation">
+    The interpreter validates that values are Java `Integer` objects:
+
+    ```java
+    case "int":
+        return valor instanceof Integer;
+    ```
+
+    ✅ **Valid:** `42`, `0`, `999`
+    
+    ❌ **Invalid:** `3.14` (float), `"123"` (string), `true` (bool)
+  </Tab>
+</Tabs>
+
+---
+
+### Float (`float`)
+
+Stores decimal numbers with fractional parts.
+
+<Tabs>
+  <Tab title="Definition">
+    ```eli
+    table measurements {
+      temperature: float;
+      price: float;
+      rating: float;
+    };
+    ```
+  </Tab>
+
+  <Tab title="Literal Syntax">
+    ```eli
+    add measurements {
+      temperature: 98.6,
+      price: 19.99,
+      rating: 4.5
+    };
+    ```
+
+    **Valid formats:**
+    - `0.0` - Zero with decimal
+    - `3.14159` - Pi
+    - `99.99` - Currency values
+
+    <Note>
+      The decimal point and at least one digit after it are **required**. `3.` is invalid; use `3.0`.
+    </Note>
+  </Tab>
+
+  <Tab title="Validation">
+    Accepts Java `Double`, `Float`, or `Integer` (integers can be promoted to float):
+
+    ```java
+    case "float":
+        return valor instanceof Double
+                || valor instanceof Float
+                || valor instanceof Integer;
+    ```
+
+    ✅ **Valid:** `3.14`, `0.0`, `42` (promoted from int)
+    
+    ❌ **Invalid:** `"3.14"` (string), `true` (bool)
+  </Tab>
+</Tabs>
+
+---
+
+### String (`string`)
+
+Stores text data with support for escape sequences.
+
+<Tabs>
+  <Tab title="Definition">
+    ```eli
+    table users {
+      name: string;
+      email: string;
+      bio: string;
+    };
+    ```
+  </Tab>
+
+  <Tab title="Literal Syntax">
+    ```eli
+    add users {
+      name: "Alice Johnson",
+      email: "alice@example.com",
+      bio: "Software engineer\nLoves coding!"
+    };
+    ```
+
+    **Empty strings:**
+    ```eli
+    add users {
+      name: "",          ## Valid: empty string
+      email: "x@y.com",
+      bio: "TBD"
+    };
+    ```
+  </Tab>
+
+  <Tab title="Escape Sequences">
+    Strings support these escape sequences:
+
+    | Sequence | Result | Example |
+    |----------|--------|----------|
+    | `\n` | Newline | `"Line 1\nLine 2"` |
+    | `\r` | Carriage return | `"Text\r\n"` |
+    | `\t` | Tab | `"Col1\tCol2"` |
+    | `\"` | Quote | `"He said \"Hi\""` |
+    | `\\` | Backslash | `"C:\\Users"` |
+
+    **Lexer implementation:**
+    ```jflex
+    <STRING> {
+        \\t     { string.append('\t'); }
+        \\n     { string.append('\n'); }
+        \\r     { string.append('\r'); }
+        \\"    { string.append('"'); }
+        \\\\    { string.append('\\'); }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Validation">
+    ```java
+    case "string":
+        return valor instanceof String;
+    ```
+
+    ✅ **Valid:** `"Hello"`, `""`, `"123"` (string, not number)
+    
+    ❌ **Invalid:** `123` (int), `true` (bool), unquoted text
+  </Tab>
+</Tabs>
+
+---
+
+### Boolean (`bool`)
+
+Stores true/false values.
+
+<Tabs>
+  <Tab title="Definition">
+    ```eli
+    table users {
+      name: string;
+      active: bool;
+      verified: bool;
+    };
+    ```
+  </Tab>
+
+  <Tab title="Literal Syntax">
+    ```eli
+    add users {
+      name: "Bob",
+      active: true,
+      verified: false
+    };
+    ```
+
+    Only two literals are valid:
+    - `true` - Boolean true
+    - `false` - Boolean false
+
+    <Warning>
+      Booleans are **case-sensitive** keywords. `True`, `TRUE`, `FALSE` are invalid.
+    </Warning>
+  </Tab>
+
+  <Tab title="Validation">
+    ```java
+    case "bool":
+        return valor instanceof Boolean;
+    ```
+
+    ✅ **Valid:** `true`, `false`
+    
+    ❌ **Invalid:** `1` (int), `"true"` (string), `yes`/`no`
+  </Tab>
+</Tabs>
+
+---
+
+## Composite Types
+
+### Array (`array`)
+
+Stores ordered collections of heterogeneous values.
+
+<Tabs>
+  <Tab title="Definition">
+    ```eli
+    table posts {
+      id: int;
+      title: string;
+      tags: array;
+      comments: array;
+    };
+    ```
+
+    <Note>
+      ELI arrays are **untyped** - elements can be of different types.
+    </Note>
+  </Tab>
+
+  <Tab title="Literal Syntax">
+    ```eli
+    ## Array of strings
+    add posts {
+      id: 1,
+      title: "First Post",
+      tags: ["tech", "tutorial", "beginner"]
+    };
+
+    ## Array of mixed types
+    add posts {
+      id: 2,
+      title: "Data Post",
+      tags: [42, "mixed", true, 3.14, null]
+    };
+
+    ## Empty array
+    add posts {
+      id: 3,
+      title: "No tags",
+      tags: []
+    };
+    ```
+
+    **Syntax:**
+    - Enclosed in square brackets `[` `]`
+    - Elements separated by commas
+    - Trailing commas **not allowed**
+  </Tab>
+
+  <Tab title="Nested Arrays">
+    Arrays can contain other arrays:
+
+    ```eli
+    table data {
+      matrix: array;
+    };
+
+    add data {
+      matrix: [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]
+      ]
+    };
+    ```
+  </Tab>
+
+  <Tab title="Parser Implementation">
+    Grammar rules for arrays:
+
+    ```cup
+    array_literal
+      ::= LBRACKET array_elements:a RBRACKET
+          {: RESULT = a; :}
+      | LBRACKET RBRACKET
+          {: RESULT = new java.util.ArrayList(); :}
+      ;
+
+    array_elements
+      ::= array_elements:l COMMA json_value:v
+          {: ((java.util.List)l).add(v); RESULT = l; :}
+      | json_value:v
+          {: java.util.List lista = new java.util.ArrayList();
+             lista.add(v); RESULT = lista; :}
+      ;
+    ```
+  </Tab>
+
+  <Tab title="Validation">
+    ```java
+    case "array":
+        return valor instanceof List;
+    ```
+
+    Implemented as Java `ArrayList`.
+
+    ✅ **Valid:** `[]`, `[1, 2, 3]`, `["a", true, null]`
+    
+    ❌ **Invalid:** `{}` (object), `"[1,2,3]"` (string)
+  </Tab>
+</Tabs>
+
+---
+
+### Object (`object`)
+
+Stores key-value pairs (nested documents).
+
+<Tabs>
+  <Tab title="Definition">
+    ```eli
+    table users {
+      id: int;
+      name: string;
+      address: object;
+      metadata: object;
+    };
+    ```
+  </Tab>
+
+  <Tab title="Literal Syntax">
+    ```eli
+    add users {
+      id: 1,
+      name: "Alice",
+      address: {
+        street: "123 Main St",
+        city: "Springfield",
+        zip: 12345
+      }
+    };
+    ```
+
+    **Syntax:**
+    - Enclosed in curly braces `{` `}`
+    - Key-value pairs separated by commas
+    - Keys are identifiers (unquoted)
+    - Keys and values separated by colon `:`
+  </Tab>
+
+  <Tab title="Nested Objects">
+    Objects can contain other objects and arrays:
+
+    ```eli
+    table profiles {
+      data: object;
+    };
+
+    add profiles {
+      data: {
+        user: {
+          name: "Bob",
+          age: 30
+        },
+        preferences: {
+          theme: "dark",
+          notifications: true
+        },
+        tags: ["premium", "verified"]
+      }
+    };
+    ```
+  </Tab>
+
+  <Tab title="Empty Objects">
+    ```eli
+    add users {
+      id: 2,
+      name: "Charlie",
+      metadata: {}  ## Empty object
+    };
+    ```
+  </Tab>
+
+  <Tab title="Parser Implementation">
+    Grammar rules for objects:
+
+    ```cup
+    object_literal
+      ::= LBRACE object_fields:f RBRACE
+          {: RESULT = f; :}
+      | LBRACE RBRACE
+          {: RESULT = new java.util.HashMap(); :}
+      ;
+
+    object_fields
+      ::= object_fields:m COMMA IDENTIFIER:k COLON json_value:v
+          {: m.put(k, v); RESULT = m; :}
+      | IDENTIFIER:k COLON json_value:v
+          {: java.util.Map map = new java.util.HashMap();
+             map.put(k, v); RESULT = map; :}
+      ;
+    ```
+  </Tab>
+</Tabs>
+
+---
+
+## Null Values
+
+The `null` keyword represents the absence of a value.
+
+```eli
+add users {
+  id: 1,
+  name: "Dave",
+  email: null,        ## No email provided
+  phone: null         ## No phone provided
+};
+```
+
+<Note>
+  `null` is a valid value for **any** type. Fields can be null even if they have a specific type annotation.
+</Note>
+
+---
+
+## Type Validation
+
+ELI validates types at **runtime** when inserting or updating records.
+
+### ADD Validation
+
+```eli
+table products {
+  id: int;
+  name: string;
+  price: float;
+};
+
+## ✅ Valid
+add products {
+  id: 1,
+  name: "Widget",
+  price: 9.99
+};
+
+## ❌ Invalid - type mismatch
+add products {
+  id: "one",          ## ERROR: Expected int, got string
+  name: 123,           ## ERROR: Expected string, got int
+  price: true          ## ERROR: Expected float, got bool
+};
+
+## ❌ Invalid - incomplete record
+add products {
+  id: 1,
+  name: "Widget"
+  ## ERROR: Missing required field 'price'
+};
+```
+
+**Interpreter validation (Interprete.java:111-127):**
+
+```java
+// VALIDAR CAMPOS COMPLETOS
+if(valores.size() != t.getSchema().size()){
+    logError("Registro incompleto.");
+    return;
+}
+
+Registro r = new Registro();
+
+for (Map.Entry<String, Object> e : valores.entrySet()) {
+    if(!validarTipo(t, e.getKey(), e.getValue())){
+        logError("Tipo incorrecto en campo '"+e.getKey()+"'");
+        return;
+    }
+    r.setCampo(e.getKey(), e.getValue());
+}
+```
+
+### UPDATE Validation
+
+```eli
+## ✅ Valid
+update products {
+  set: price = 12.99;
+  filter: id == 1;
+};
+
+## ❌ Invalid - type mismatch
+update products {
+  set: price = "twelve";  ## ERROR: Expected float, got string
+  filter: id == 1;
+};
+```
+
+**Interpreter validation (Interprete.java:198-212):**
+
+```java
+//  VALIDAR CAMPOS Y TIPOS
+for (Map.Entry<String, Object> e : nuevoValores.entrySet()) {
+    String campo = e.getKey();
+    Object valor = e.getValue();
+    // validar campo existe
+    if (!t.getSchema().containsKey(campo)) {
+        logError("Campo '" + campo + "' no existe en la tabla.");
+        return;
+    }
+    // validar tipo
+    if (!validarTipo(t, campo, valor)) {
+        logError("Tipo incorrecto en UPDATE campo " + campo);
+        return;
+    }
+}
+```
+
+---
+
+## Type Validation Logic
+
+The `validarTipo` method (Interprete.java:640-670) implements runtime type checking:
+
+```java
+private static boolean validarTipo(Tabla tabla, String campo, Object valor){
+    String tipo = tabla.getSchema().get(campo);
+
+    if(tipo == null){
+        logError("Campo '"+campo+"' no existe en la tabla.");
+        return false;
+    }
+
+    switch(tipo){
+        case "int":
+            return valor instanceof Integer;
+
+        case "float":
+            return valor instanceof Double
+                    || valor instanceof Float
+                    || valor instanceof Integer;
+
+        case "string":
+            return valor instanceof String;
+
+        case "bool":
+            return valor instanceof Boolean;
+
+        case "array":
+            return valor instanceof List;
+    }
+
+    return true;
+}
+```
+
+<Accordion title="Why float accepts Integer">
+  The float type accepts integers to allow seamless promotion. This means you can write:
+
+  ```eli
+  add products {
+    price: 10  ## Promoted to 10.0
+  };
+  ```
+
+  This is a convenience feature that matches behavior in many programming languages.
+</Accordion>
+
+---
+
+## Complex Data Examples
+
+### E-Commerce Product
+
+```eli
+table products {
+  id: int;
+  name: string;
+  price: float;
+  in_stock: bool;
+  tags: array;
+  specs: object;
+};
+
+add products {
+  id: 100,
+  name: "Laptop",
+  price: 999.99,
+  in_stock: true,
+  tags: ["electronics", "computers", "sale"],
+  specs: {
+    brand: "TechCorp",
+    cpu: "Intel i7",
+    ram_gb: 16,
+    storage: {
+      type: "SSD",
+      capacity_gb: 512
+    }
+  }
+};
+```
+
+### User Profile with Metadata
+
+```eli
+table users {
+  id: int;
+  username: string;
+  profile: object;
+  roles: array;
+  last_login: float;
+  active: bool;
+};
+
+add users {
+  id: 42,
+  username: "alice_2024",
+  profile: {
+    display_name: "Alice Johnson",
+    bio: "Software Engineer",
+    avatar_url: null,
+    settings: {
+      theme: "dark",
+      language: "en",
+      notifications: true
+    }
+  },
+  roles: ["user", "moderator"],
+  last_login: 1698765432.0,
+  active: true
+};
+```
+
+### Nested Arrays and Objects
+
+```eli
+table analytics {
+  report_id: int;
+  metrics: array;
+};
+
+add analytics {
+  report_id: 1,
+  metrics: [
+    {
+      name: "page_views",
+      values: [100, 150, 200, 175],
+      avg: 156.25
+    },
+    {
+      name: "conversions",
+      values: [5, 8, 12, 9],
+      avg: 8.5
+    }
+  ]
+};
+```
+
+---
+
+## Type Reference Summary
+
+| Type | Java Type | Literals | Example |
+|------|-----------|----------|----------|
+| `int` | `Integer` | `0`, `42`, `999` | `id: 123` |
+| `float` | `Double`/`Float`/`Integer` | `0.0`, `3.14`, `99.99` | `price: 19.99` |
+| `string` | `String` | `"text"`, `""` | `name: "Alice"` |
+| `bool` | `Boolean` | `true`, `false` | `active: true` |
+| `array` | `List` | `[1, 2, 3]`, `[]` | `tags: ["a", "b"]` |
+| `object` | `Map` | `{key: val}`, `{}` | `meta: {x: 1}` |
+| `null` | `null` | `null` | `email: null` |
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Commands" icon="terminal" href="/language/commands">
+    Learn how to manipulate typed data
+  </Card>
+  <Card title="Expressions" icon="function" href="/language/expressions">
+    Filter data by type-specific comparisons
+  </Card>
+  <Card title="ADD Command" icon="plus" href="/api/add">
+    Insert records with full type validation
+  </Card>
+  <Card title="UPDATE Command" icon="pen" href="/api/update">
+    Modify records with type safety
+  </Card>
+</CardGroup>

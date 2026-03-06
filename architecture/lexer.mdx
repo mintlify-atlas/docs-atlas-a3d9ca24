@@ -1,0 +1,366 @@
+---
+title: 'Lexical Analysis (Lexer)'
+description: 'JFlex-based lexical analyzer and token generation'
+---
+
+## Overview
+
+The lexer (also called scanner) is generated from `Scanner.jflex` using **JFlex**, a lexical analyzer generator for Java. It reads the source code character by character and produces a stream of tokens that the parser consumes.
+
+**Location:** `src/jflex/Scanner.jflex` → generates `analisis/Lexer.java`
+
+## JFlex Configuration
+
+The lexer is configured with the following directives:
+
+```java
+%class Lexer
+%unicode
+%cup
+%line
+%column
+%public
+```
+
+- **`%cup`** - Generates a parser compatible with CUP
+- **`%line` / `%column`** - Tracks line and column numbers for error reporting
+- **`%unicode`** - Supports Unicode input
+
+## Token Categories
+
+The lexer recognizes the following token categories:
+
+### 1. Keywords (Reserved Words)
+
+Database definition and manipulation commands:
+
+| Keyword | Token | Purpose |
+|---------|-------|----------|
+| `database` | `DATABASE` | Define a new database |
+| `table` | `TABLE` | Define a new table |
+| `use` | `USE` | Switch active database |
+| `read` | `READ` | Query records |
+| `add` | `ADD` | Insert new record |
+| `update` | `UPDATE` | Modify existing records |
+| `clear` | `CLEAR` | Delete all records |
+| `export` | `EXPORT` | Export query results |
+| `store` | `STORE` | Specify storage path |
+| `at` | `AT` | Location specifier |
+| `fields` | `FIELDS` | Field list in queries |
+| `filter` | `FILTER` | Query filter clause |
+| `set` | `SET` | Update assignments |
+
+**Implementation (Scanner.jflex:52-78):**
+```java
+"database"  { Reportes.agregarToken(yytext(),"DATABASE", yyline,yycolumn);
+              return symbol(sym.DATABASE); }
+"table"     { Reportes.agregarToken(yytext(),"TABLE",    yyline,yycolumn);
+              return symbol(sym.TABLE); }
+// ... more keywords
+```
+
+### 2. Data Type Keywords
+
+Type specifiers for table schema definitions:
+
+| Type | Token | Java Mapping |
+|------|-------|-------------|
+| `int` | `TINT` | `Integer` |
+| `float` | `TFLOAT` | `Double` |
+| `string` | `TSTRING` | `String` |
+| `bool` | `TBOOL` | `Boolean` |
+| `array` | `TARRAY` | `List` |
+| `object` | `TOBJECT` | `Map` |
+| `null` | `NULL` | `null` |
+
+**Implementation (Scanner.jflex:82-96):**
+```java
+"int"       { Reportes.agregarToken(yytext(),"TIPO_INT",    yyline,yycolumn);
+              return symbol(sym.TINT); }
+"float"     { Reportes.agregarToken(yytext(),"TIPO_FLOAT",  yyline,yycolumn);
+              return symbol(sym.TFLOAT); }
+```
+
+### 3. Boolean Literals
+
+```java
+"true"      { return symbol(sym.TRUE); }
+"false"     { return symbol(sym.FALSE); }
+```
+
+### 4. Relational Operators
+
+Used in filter expressions:
+
+| Operator | Token | Meaning |
+|----------|-------|----------|
+| `==` | `EQ` | Equal |
+| `!=` | `NEQ` | Not equal |
+| `>` | `GT` | Greater than |
+| `<` | `LT` | Less than |
+| `>=` | `GEQ` | Greater or equal |
+| `<=` | `LEQ` | Less or equal |
+
+**Implementation (Scanner.jflex:107-119):**
+```java
+"=="  { Reportes.agregarToken(yytext(),"OP_IGUAL",     yyline,yycolumn);
+        return symbol(sym.EQ); }
+"!="  { Reportes.agregarToken(yytext(),"OP_DIFERENTE", yyline,yycolumn);
+        return symbol(sym.NEQ); }
+```
+
+### 5. Logical Operators
+
+| Operator | Token | Meaning |
+|----------|-------|----------|
+| `&&` | `AND` | Logical AND |
+| `||` | `OR` | Logical OR |
+| `!` | `NOT` | Logical NOT |
+
+**Implementation (Scanner.jflex:122-128):**
+```java
+"&&"  { Reportes.agregarToken(yytext(),"OP_AND", yyline,yycolumn);
+        return symbol(sym.AND); }
+"||"  { Reportes.agregarToken(yytext(),"OP_OR",  yyline,yycolumn);
+        return symbol(sym.OR); }
+```
+
+### 6. Grouping and Punctuation
+
+| Symbol | Token | Purpose |
+|--------|-------|----------|
+| `{` | `LBRACE` | Object/block start |
+| `}` | `RBRACE` | Object/block end |
+| `(` | `LPAREN` | Expression grouping |
+| `)` | `RPAREN` | Expression end |
+| `[` | `LBRACKET` | Array start |
+| `]` | `RBRACKET` | Array end |
+| `;` | `SEMICOLON` | Statement terminator |
+| `:` | `COLON` | Key-value separator |
+| `,` | `COMMA` | Element separator |
+| `*` | `STAR` | Wildcard (all fields) |
+| `=` | `ASSIGN` | Assignment |
+
+## Regular Expressions
+
+The lexer uses regular expressions to recognize patterns:
+
+### Whitespace and Line Terminators
+
+```java
+LineTerminator  = \r|\n|\r\n
+WhiteSpace      = {LineTerminator} | [ \t\f]
+```
+
+Whitespace is ignored (Scanner.jflex:44).
+
+### Comments
+
+Two comment styles are supported:
+
+**Single-line comment:**
+```java
+"##" [^\r\n]*           { /* comment, ignore */ }
+```
+
+Example:
+```eli
+## This is a comment
+database mydb { };
+```
+
+**Multi-line comment:**
+```java
+"#*" ~"#*"              { /* multi-line comment, ignore */ }
+```
+
+Example:
+```eli
+#* This is a
+   multi-line comment #*
+```
+
+### Identifiers
+
+```java
+Identifier      = [a-zA-Z_][a-zA-Z0-9_]*
+```
+
+- Must start with a letter or underscore
+- Can contain letters, digits, and underscores
+
+**Implementation (Scanner.jflex:173-174):**
+```java
+{Identifier}           { Reportes.agregarToken(yytext(),"IDENTIFIER", yyline,yycolumn);
+                         return symbol(sym.IDENTIFIER, yytext()); }
+```
+
+### Numeric Literals
+
+**Integer literals:**
+```java
+DecInteger      = 0 | [1-9][0-9]*
+```
+
+Examples: `0`, `42`, `1234`
+
+**Implementation (Scanner.jflex:163-165):**
+```java
+{DecInteger} { Reportes.agregarToken(yytext(),"INT",   yyline,yycolumn);
+               return symbol(sym.INT_LITERAL,
+                   Integer.parseInt(yytext())); }
+```
+
+**Float literals:**
+```java
+DecFloat        = ({DecInteger})"."[0-9]+
+```
+
+Examples: `3.14`, `0.5`, `123.456`
+
+**Implementation (Scanner.jflex:160-162):**
+```java
+{DecFloat}   { Reportes.agregarToken(yytext(),"FLOAT", yyline,yycolumn);
+               return symbol(sym.FLOAT_LITERAL,
+                   Double.parseDouble(yytext())); }
+```
+
+### String Literals
+
+String parsing uses a **two-state lexer** to handle escape sequences.
+
+**State 1: Initial state** - Detect opening quote (Scanner.jflex:168):
+```java
+\"                      { string.setLength(0); yybegin(STRING); }
+```
+
+**State 2: STRING state** - Process string contents (Scanner.jflex:189-202):
+```java
+<STRING> {
+    \"                      { yybegin(YYINITIAL);
+                               Reportes.agregarToken("\"" + string.toString() + "\"",
+                                   "STRING", yyline, yycolumn);
+                               return symbol(sym.STRING_LITERAL, string.toString()); }
+
+    [^\n\r\"\\]+            { string.append(yytext()); }
+    \\t                     { string.append('\t'); }
+    \\n                     { string.append('\n'); }
+    \\r                     { string.append('\r'); }
+    \\\"                    { string.append('"'); }
+    \\\\                    { string.append('\\'); }
+}
+```
+
+**Supported escape sequences:**
+- `\t` - Tab
+- `\n` - Newline
+- `\r` - Carriage return
+- `\"` - Quote
+- `\\` - Backslash
+
+**Example:**
+```eli
+add users {
+  name: "John\nDoe",
+  bio: "Says \"Hello\" to everyone"
+};
+```
+
+## Error Handling
+
+Illegal characters are reported as lexical errors:
+
+**Implementation (Scanner.jflex:179-182):**
+```java
+[^]                     { Reportes.agregarError( 
+                            "Léxico",
+                            "Carácter ilegal '" + yytext() + "'",
+                            yyline, yycolumn); }
+```
+
+The `[^]` pattern matches any single character that doesn't match previous rules.
+
+**Example error:**
+```
+Léxico: Carácter ilegal '@' at line 5, column 12
+```
+
+## Symbol Creation
+
+The lexer creates `Symbol` objects for the parser:
+
+**Helper methods (Scanner.jflex:15-20):**
+```java
+private Symbol symbol(int type) {
+    return new Symbol(type, yyline, yycolumn);
+}
+private Symbol symbol(int type, Object value) {
+    return new Symbol(type, yyline, yycolumn, value);
+}
+```
+
+- **`type`** - Token type from `sym.java` (generated by CUP)
+- **`value`** - Semantic value (e.g., the actual integer, string, or identifier name)
+- **`yyline`** / **`yycolumn`** - Position for error reporting
+
+## Token Reporting
+
+Every recognized token is logged to `Reportes` for debugging:
+
+```java
+Reportes.agregarToken(yytext(), "TOKEN_NAME", yyline, yycolumn);
+```
+
+This allows the IDE to display:
+- Token list
+- Lexical analysis results
+- Position information
+
+## Example Tokenization
+
+**Input:**
+```eli
+database mydb { store at "data.json"; };
+```
+
+**Output tokens:**
+```
+DATABASE       "database"     (line 1, col 0)
+IDENTIFIER     "mydb"         (line 1, col 9)
+LBRACE         "{"            (line 1, col 14)
+STORE          "store"        (line 1, col 16)
+AT             "at"           (line 1, col 22)
+STRING_LITERAL "data.json"    (line 1, col 25)
+SEMICOLON      ";"            (line 1, col 37)
+RBRACE         "}"            (line 1, col 38)
+SEMICOLON      ";"            (line 1, col 39)
+```
+
+## Integration with Parser
+
+The lexer implements the `java_cup.runtime.Scanner` interface:
+
+```java
+import java_cup.runtime.*;
+```
+
+The parser calls `next_token()` repeatedly to get the token stream:
+
+```java
+Symbol token = lexer.next_token();
+```
+
+Tokenization continues until `EOF` (end of file) is reached.
+
+## Related Files
+
+- **`src/jflex/Scanner.jflex`** - JFlex specification
+- **`analisis/Lexer.java`** - Generated lexer (do not edit manually)
+- **`analisis/sym.java`** - Token constants (generated by CUP)
+- **`analisis/Reportes.java`** - Token and error reporting
+
+## Next Steps
+
+<Card title="Parser" icon="brackets-curly" href="/architecture/parser">
+  Learn how the parser consumes tokens and builds the execution flow
+</Card>

@@ -1,0 +1,296 @@
+---
+title: Installation
+description: Set up ELI NoSQL compiler and IDE on your system
+icon: download
+---
+
+## Overview
+
+ELI NoSQL is a custom NoSQL database language compiler with a Swing-based IDE. The project uses JFlex for lexical analysis and CUP for parsing, providing a complete compilation toolchain for the ELI language.
+
+<Note>
+ELI NoSQL stores data as JSON files and provides a SQL-like syntax for NoSQL operations. The IDE includes syntax highlighting, drag-and-drop file loading, and real-time token/error reporting.
+</Note>
+
+## Prerequisites
+
+<Steps>
+  <Step title="Java Development Kit (JDK)">
+    ELI NoSQL requires **JDK 8 or higher** to compile and run.
+
+    ```bash
+    # Check your Java version
+    java -version
+    javac -version
+    ```
+
+    Download from [Oracle](https://www.oracle.com/java/technologies/downloads/) or use OpenJDK.
+  </Step>
+
+  <Step title="Apache Ant (Optional)">
+    Required only if building from source using the provided `build.xml`.
+
+    ```bash
+    # Check if Ant is installed
+    ant -version
+    ```
+
+    Download from [Apache Ant](https://ant.apache.org/bindownload.cgi).
+  </Step>
+</Steps>
+
+## Required Libraries
+
+ELI NoSQL includes all required dependencies in the project structure:
+
+<CardGroup cols={2}>
+  <Card title="Runtime Libraries" icon="cube">
+    Located in `lib/` directory:
+    - `java-cup-11b-runtime.jar` - CUP parser runtime
+    - `java-cup-11b.jar` - CUP parser generator
+    - `jflex-full-1.9.1.jar` - JFlex lexer generator
+  </Card>
+  
+  <Card title="Build Tools" icon="hammer">
+    Located in `tools/` directory:
+    - `java-cup-11b.jar` - Parser generator
+    - `jflex-full-1.9.1.jar` - Lexer generator
+  </Card>
+</CardGroup>
+
+<Note>
+These libraries are already included in the repository - no additional downloads required!
+</Note>
+
+## Installation Methods
+
+### Option 1: Use Pre-built JAR (Recommended)
+
+The fastest way to get started is using the pre-compiled JAR file.
+
+<Steps>
+  <Step title="Download or clone the repository">
+    ```bash
+    git clone <repository-url>
+    cd ProyectoELI
+    ```
+  </Step>
+
+  <Step title="Run the application">
+    The compiled JAR includes all dependencies:
+
+    ```bash
+    java -jar dist/ProyectoELI.jar
+    ```
+
+    The IDE window will open immediately.
+  </Step>
+</Steps>
+
+<Check>
+If the IDE opens with the editor and console panels, you're ready to go!
+</Check>
+
+### Option 2: Build from Source with Ant
+
+Build the project from source using the Ant build system.
+
+<Steps>
+  <Step title="Clone the repository">
+    ```bash
+    git clone <repository-url>
+    cd ProyectoELI
+    ```
+  </Step>
+
+  <Step title="Generate lexer and parser">
+    The `build.xml` includes a target to generate the lexer and parser from `.jflex` and `.cup` files:
+
+    ```bash
+    ant generate
+    ```
+
+    This creates:
+    - `src/analisis/Lexer.java` (from `src/jflex/Scanner.jflex`)
+    - `src/analisis/Parser.java` (from `src/cup/Parser.cup`)
+    - `src/analisis/sym.java` (symbol definitions)
+  </Step>
+
+  <Step title="Compile the project">
+    ```bash
+    ant compile
+    ```
+
+    Compiled classes will be in the `bin/` directory.
+  </Step>
+
+  <Step title="Run the IDE">
+    ```bash
+    # Run from compiled classes
+    java -cp "bin:lib/*" compilador.Compilador
+
+    # Or create and run JAR
+    ant jar
+    java -jar dist/ProyectoELI.jar
+    ```
+  </Step>
+</Steps>
+
+### Option 3: Build from IDE (NetBeans)
+
+The project includes NetBeans project files for easy IDE integration.
+
+<Steps>
+  <Step title="Open in NetBeans">
+    1. Launch NetBeans IDE
+    2. Choose **File > Open Project**
+    3. Navigate to the `ProyectoELI` directory
+    4. Select the project and click **Open Project**
+  </Step>
+
+  <Step title="Build the project">
+    Right-click the project in the Projects panel and select:
+    - **Clean and Build** - Full rebuild
+    - **Run** - Build and launch the IDE
+  </Step>
+
+  <Step title="Configure libraries (if needed)">
+    If you see compilation errors:
+    1. Right-click project > **Properties**
+    2. Go to **Libraries** > **Compile** tab
+    3. Ensure these JARs are present:
+       - `java-cup-11b-runtime.jar`
+       - `java-cup-11b.jar`
+       - `jflex-full-1.9.1.jar`
+  </Step>
+</Steps>
+
+## Verify Installation
+
+Once the IDE is running, you should see:
+
+<Steps>
+  <Step title="Main window layout">
+    - **Left panel**: Code editor with line numbers and dark theme
+    - **Right panel**: Reports area for tokens and errors
+    - **Bottom panel**: Console output area (black background, green text)
+    - **Menu bar**: Archivo, Ejecutar, Reportes
+  </Step>
+
+  <Step title="Test with a simple program">
+    Copy this into the editor:
+
+    ```eli
+    database testDB {
+      store at "test.json";
+    }
+
+    use testDB;
+
+    table users {
+      id: int;
+      name: string;
+    }
+    ```
+
+    Click **Ejecutar > ▶ Ejecutar** or press the execute button.
+  </Step>
+
+  <Step title="Check the output">
+    The console should display:
+    ```
+    Base de datos 'testDB' creada.
+    Usando base de datos: testDB
+    Tabla 'users' creada en 'testDB'.
+    
+    Análisis completado. Tokens: X | Errores: 0
+    ```
+  </Step>
+</Steps>
+
+<Check>
+If you see the success messages and no errors, your installation is working correctly!
+</Check>
+
+## Project Structure
+
+Understanding the directory layout:
+
+```
+ProyectoELI/
+├── src/
+│   ├── compilador/           # Main IDE code
+│   │   └── Compilador.java   # Swing IDE application
+│   ├── jflex/                # Lexer specification
+│   │   └── Scanner.jflex     # JFlex file
+│   ├── cup/                  # Parser specification
+│   │   └── Parser.cup        # CUP file
+│   ├── analisis/             # Generated lexer/parser (don't edit)
+│   │   ├── Lexer.java        # Generated by JFlex
+│   │   ├── Parser.java       # Generated by CUP
+│   │   ├── sym.java          # Token symbols
+│   │   ├── Token.java        # Token class
+│   │   ├── ErrorLex.java     # Error handling
+│   │   └── Reportes.java     # Token/error tracking
+│   └── Modelo/               # Interpreter and data model
+│       ├── Interprete.java   # Executes ELI commands
+│       ├── BaseDatos.java    # Database container
+│       ├── Tabla.java        # Table definition
+│       └── Registro.java     # Record/row data
+├── lib/                      # Runtime libraries
+├── tools/                    # Build-time tools
+├── dist/                     # Compiled JAR files
+├── build.xml                 # Ant build script
+└── nbproject/                # NetBeans project files
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: 'java' is not recognized">
+    Java is not in your system PATH.
+
+    **Solution:**
+    - Add Java `bin` directory to your PATH environment variable
+    - Or use the full path: `/path/to/jdk/bin/java -jar dist/ProyectoELI.jar`
+  </Accordion>
+
+  <Accordion title="ClassNotFoundException or NoClassDefFoundError">
+    Runtime libraries are not in the classpath.
+
+    **Solution:**
+    - Ensure you're using the pre-built JAR: `java -jar dist/ProyectoELI.jar`
+    - If running from classes: `java -cp "bin:lib/*" compilador.Compilador`
+    - On Windows use semicolon: `java -cp "bin;lib/*" compilador.Compilador`
+  </Accordion>
+
+  <Accordion title="Build fails: 'jflex' or 'cup' task not found">
+    Ant cannot find the JFlex or CUP tasks.
+
+    **Solution:**
+    - Verify `tools/` directory contains both JAR files
+    - Check `build.xml` taskdef paths are correct
+    - Ensure Ant has permissions to read the tools directory
+  </Accordion>
+
+  <Accordion title="IDE opens but nothing happens when executing code">
+    Check the console panel for error messages.
+
+    **Solution:**
+    - Look for lexical or syntax errors in the Reports panel
+    - Use **Reportes > Tabla de Errores** to see detailed error information
+    - Verify your code syntax matches the ELI language grammar
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Create your first database and run queries
+  </Card>
+  
+  <Card title="Language Reference" icon="book" href="/language/syntax">
+    Learn the complete ELI NoSQL syntax
+  </Card>
+</CardGroup>

@@ -1,0 +1,534 @@
+---
+title: IDE Examples
+description: Complete walkthroughs showing the ELI IDE in action
+---
+
+This guide provides complete examples demonstrating the full workflow from writing code to viewing results in the ELI IDE.
+
+## Example 1: Student Database
+
+This example creates a university student database with courses and grades.
+
+### Step 1: Write the Code
+
+Create a new file and enter:
+
+```eli universidad.code
+DATABASE universidad;
+
+TABLE alumnos {
+  nombre: string,
+  edad: int,
+  promedio: float,
+  cursos: array,
+  activo: bool
+};
+
+TABLE maestros {
+  nombre: string,
+  edad: int,
+  salario: float,
+  activo: bool
+};
+
+ADD alumnos {
+  nombre: "Pedro",
+  edad: 25,
+  promedio: 100.0,
+  cursos: [1, 2, 3],
+  activo: true
+};
+
+ADD alumnos {
+  nombre: "Maria",
+  edad: 30,
+  promedio: 90.0,
+  cursos: ["mate", "progra"],
+  activo: true
+};
+
+ADD alumnos {
+  nombre: "Juan",
+  edad: 18,
+  promedio: 61.2,
+  cursos: [],
+  activo: false
+};
+
+READ alumnos WHERE promedio > 85;
+
+UPDATE alumnos SET activo = false WHERE edad < 20;
+
+EXPORT universidad AS "universidad.json";
+```
+
+### Step 2: Save the File
+
+1. Click **Archivo → Guardar**
+2. Name it `universidad.code`
+3. Status bar shows: "Guardado: /path/to/universidad.code"
+
+### Step 3: Execute
+
+1. Click **Ejecutar → ▶ Ejecutar**
+2. Watch the console for output
+
+### Step 4: Console Output
+
+The console displays:
+
+```
+  DATABASE 'universidad' creado.
+  TABLA 'alumnos' creada con 5 campos.
+  TABLA 'maestros' creada con 4 campos.
+  
+  Registro agregado a 'alumnos':
+    nombre: Pedro
+    edad: 25
+    promedio: 100.0
+    cursos: [1, 2, 3]
+    activo: true
+  
+  Registro agregado a 'alumnos':
+    nombre: Maria
+    edad: 30
+    promedio: 90.0
+    cursos: [mate, progra]
+    activo: true
+  
+  Registro agregado a 'alumnos':
+    nombre: Juan
+    edad: 18
+    promedio: 61.2
+    cursos: []
+    activo: false
+  
+  READ alumnos (filtrado):
+  ┌─────────┬──────┬──────────┬──────────────┬────────┐
+  │ nombre  │ edad │ promedio │ cursos       │ activo │
+  ├─────────┼──────┼──────────┼──────────────┼────────┤
+  │ Pedro   │ 25   │ 100.0    │ [1, 2, 3]    │ true   │
+  │ Maria   │ 30   │ 90.0     │ [mate, pr... │ true   │
+  └─────────┴──────┴──────────┴──────────────┴────────┘
+  2 registros encontrados.
+  
+  UPDATE alumnos: 1 registro(s) modificado(s).
+  
+  EXPORT 'universidad' → universidad.json (exitoso)
+
+  Análisis completado. Tokens: 156 | Errores: 0
+```
+
+### Step 5: View Token Table
+
+1. Click **Reportes → Tabla de Tokens**
+2. The reports panel shows:
+
+```
+_____________________________________________
+|              TABLA DE TOKENS                    |
+_____________________________________________
+#     Lexema               Tipo            Línea    Columna
+────────────────────────────────────────────────────────────
+1     DATABASE             KEYWORD         1        1
+2     universidad          IDENTIFIER      1        10
+3     ;                    SEMICOLON       1        21
+4     TABLE                KEYWORD         3        1
+5     alumnos              IDENTIFIER      3        7
+6     {                    LBRACE          3        15
+7     nombre               IDENTIFIER      4        3
+8     :                    COLON           4        9
+9     string               TYPE            4        11
+10    ,                    COMMA           4        17
+...
+────────────────────────────────────────────────────────────
+Total: 156 tokens
+```
+
+### Step 6: Check for Errors
+
+1. Click **Reportes → Tabla de Errores**
+2. See confirmation:
+
+```
+_____________________________________________
+|              TABLA DE ERRORES                      |
+_____________________________________________
+#     Tipo       Descripción                      Línea    Columna
+────────────────────────────────────────────────────────────
+ No se encontraron errores.
+────────────────────────────────────────────────────────────
+Total: 0 errores
+```
+
+<Success>
+  Perfect! The student database compiled and executed without errors.
+</Success>
+
+## Example 2: E-commerce Orders
+
+This example demonstrates complex nested structures for an online store.
+
+### The Code
+
+```eli ecommerce.code
+DATABASE ecommerce;
+
+TABLE ordenes {
+  id: int,
+  cliente_id: int,
+  estado: string,
+  total: float,
+  items: array,
+  envio: object
+};
+
+ADD ordenes {
+  id: 100,
+  cliente_id: 2,
+  estado: "PAGADO",
+  total: 6871.25,
+  items: [
+    {producto_id: 10, cantidad: 1, subtotal: 6500.5},
+    {producto_id: 11, cantidad: 3, subtotal: 362.25},
+    {producto_id: 14, cantidad: 1, subtotal: 250.0}
+  ],
+  envio: {
+    metodo: "mensajeria",
+    direccion: "Zona 11",
+    urgente: false
+  }
+};
+
+ADD ordenes {
+  id: 101,
+  cliente_id: 3,
+  estado: "PENDIENTE",
+  total: 350.0,
+  items: [
+    {producto_id: 12, cantidad: 1, subtotal: 350.0}
+  ],
+  envio: {
+    metodo: "pickup",
+    direccion: "Zona 4",
+    urgente: false
+  }
+};
+
+READ ordenes WHERE estado = "PAGADO";
+
+EXPORT ecommerce AS "ecommerce.json";
+```
+
+### Console Output
+
+```
+  DATABASE 'ecommerce' creado.
+  TABLA 'ordenes' creada con 6 campos.
+  
+  Registro agregado a 'ordenes':
+    id: 100
+    cliente_id: 2
+    estado: PAGADO
+    total: 6871.25
+    items: [{producto_id=10, cantidad=1, subtotal=6500.5}, ...]
+    envio: {metodo=mensajeria, direccion=Zona 11, urgente=false}
+  
+  Registro agregado a 'ordenes':
+    id: 101
+    cliente_id: 3
+    estado: PENDIENTE
+    total: 350.0
+    items: [{producto_id=12, cantidad=1, subtotal=350.0}]
+    envio: {metodo=pickup, direccion=Zona 4, urgente=false}
+  
+  READ ordenes (filtrado):
+  ┌──────┬────────────┬────────┬─────────┬──────────────┬───────────────┐
+  │ id   │ cliente_id │ estado │ total   │ items        │ envio         │
+  ├──────┼────────────┼────────┼─────────┼──────────────┼───────────────┤
+  │ 100  │ 2          │ PAGADO │ 6871.25 │ [3 items]    │ {mensajeria}  │
+  └──────┴────────────┴────────┴─────────┴──────────────┴───────────────┘
+  1 registro encontrado.
+  
+  EXPORT 'ecommerce' → ecommerce.json (exitoso)
+
+  Análisis completado. Tokens: 128 | Errores: 0
+```
+
+## Example 3: Handling Errors
+
+This example shows what happens when code contains mistakes.
+
+### Code with Errors
+
+```eli errors.code
+DATABASE test
+
+TABLE usuarios {
+  nombre: string,
+  edad: int
+}
+
+ADD usuarios {
+  nombre: "Ana",
+  edad: 25,
+  email: "ana@example.com"  ## email field doesn't exist!
+};
+
+READ empleados WHERE edad > 18;  ## empleados table doesn't exist!
+
+UPDATE usuarios SET activo = true WHERE edad > 20;  ## activo field doesn't exist!
+```
+
+### Console Output
+
+```
+!!X Error en línea 1: Esperado ';' después de 'test'
+!!X Error en línea 6: Esperado ';' después de '}'
+!!X Error semántico línea 11: Campo 'email' no existe en tabla 'usuarios'
+!!X Error semántico línea 14: Tabla 'empleados' no existe
+!!X Error semántico línea 16: Campo 'activo' no existe en tabla 'usuarios'
+
+  Análisis completado. Tokens: 67 | Errores: 5
+```
+
+### Error Table
+
+```
+_____________________________________________
+|              TABLA DE ERRORES                      |
+_____________________________________________
+#     Tipo       Descripción                      Línea    Columna
+────────────────────────────────────────────────────────────
+1     SINTACTICO Esperado ';'                      1        14
+2     SINTACTICO Esperado ';'                      6        2
+3     SEMANTICO  Campo 'email' no existe           11       3
+4     SEMANTICO  Tabla 'empleados' no existe       14       6
+5     SEMANTICO  Campo 'activo' no existe          16       16
+────────────────────────────────────────────────────────────
+Total: 5 errores
+```
+
+### How to Fix
+
+<Steps>
+  <Step title="Add missing semicolons">
+    ```eli
+    DATABASE test;  ## Added semicolon
+    
+    TABLE usuarios {
+      nombre: string,
+      edad: int
+    };  ## Added semicolon
+    ```
+  </Step>
+  
+  <Step title="Remove undefined field">
+    ```eli
+    ADD usuarios {
+      nombre: "Ana",
+      edad: 25
+      ## Removed email field
+    };
+    ```
+  </Step>
+  
+  <Step title="Fix table name">
+    ```eli
+    READ usuarios WHERE edad > 18;  ## Changed to 'usuarios'
+    ```
+  </Step>
+  
+  <Step title="Fix field name">
+    Either add the field to the schema or remove the UPDATE statement:
+    ```eli
+    ## Option 1: Add field to schema
+    TABLE usuarios {
+      nombre: string,
+      edad: int,
+      activo: bool  ## Added field
+    };
+    
+    ## Option 2: Remove the UPDATE
+    ## UPDATE usuarios SET activo = true WHERE edad > 20;
+    ```
+  </Step>
+</Steps>
+
+## Example 4: Complete Workflow
+
+This example shows the entire process from blank file to exported data.
+
+### Workflow Steps
+
+<Steps>
+  <Step title="Launch IDE">
+    Start the ELI NoSQL IDE. You'll see:
+    - Empty editor with welcome message
+    - Status bar: "Listo. Arrastra un archivo .code al editor."
+  </Step>
+  
+  <Step title="Create new file">
+    Click **Archivo → Nuevo** to clear the editor
+  </Step>
+  
+  <Step title="Write code">
+    Type or paste your ELI code:
+    ```eli
+    DATABASE biblioteca;
+    
+    TABLE libros {
+      titulo: string,
+      autor: string,
+      anio: int,
+      disponible: bool
+    };
+    
+    ADD libros {titulo: "1984", autor: "Orwell", anio: 1949, disponible: true};
+    ADD libros {titulo: "Brave New World", autor: "Huxley", anio: 1932, disponible: false};
+    
+    READ libros WHERE disponible = true;
+    
+    EXPORT biblioteca AS "biblioteca.json";
+    ```
+  </Step>
+  
+  <Step title="Save file">
+    1. Click **Archivo → Guardar**
+    2. Choose location and name: `biblioteca.code`
+    3. IDE title updates: "ELI NOSQL - biblioteca.code"
+  </Step>
+  
+  <Step title="Execute code">
+    Click **Ejecutar → ▶ Ejecutar**
+    
+    Console shows:
+    ```
+      DATABASE 'biblioteca' creado.
+      TABLA 'libros' creada con 4 campos.
+      Registro agregado a 'libros'...
+      Registro agregado a 'libros'...
+      
+      READ libros (filtrado):
+      ┌──────┬─────────┬──────┬────────────┐
+      │ 1984 │ Orwell  │ 1949 │ true       │
+      └──────┴─────────┴──────┴────────────┘
+      1 registro encontrado.
+      
+      EXPORT 'biblioteca' → biblioteca.json (exitoso)
+    
+      Análisis completado. Tokens: 82 | Errores: 0
+    ```
+  </Step>
+  
+  <Step title="View tokens">
+    Click **Reportes → Tabla de Tokens** to see all 82 recognized tokens
+  </Step>
+  
+  <Step title="Check errors">
+    Click **Reportes → Tabla de Errores** to verify no errors occurred
+  </Step>
+  
+  <Step title="Verify export">
+    Check your file system for `biblioteca.json` with the exported data
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Student Management" icon="graduation-cap">
+    Track students, courses, grades, and enrollments
+    
+    **Key features:**
+    - Multiple tables (students, courses, grades)
+    - Array fields for course lists
+    - Float fields for GPA calculations
+    - Boolean fields for active status
+  </Card>
+  
+  <Card title="Inventory System" icon="warehouse">
+    Manage products, stock levels, and orders
+    
+    **Key features:**
+    - Integer fields for quantities
+    - Float fields for prices
+    - Nested objects for supplier info
+    - Array fields for order items
+  </Card>
+  
+  <Card title="Customer Database" icon="users">
+    Store customer information and purchase history
+    
+    **Key features:**
+    - String fields for contact info
+    - Date/time tracking
+    - Nested purchase records
+    - Boolean flags for preferences
+  </Card>
+  
+  <Card title="Content Management" icon="newspaper">
+    Organize articles, authors, and categories
+    
+    **Key features:**
+    - Rich text content
+    - Array fields for tags/categories
+    - Object fields for metadata
+    - Boolean fields for publish status
+  </Card>
+</CardGroup>
+
+## Tips for Success
+
+<AccordionGroup>
+  <Accordion title="Start simple">
+    Begin with a single table and a few records. Test that it works before adding complexity:
+    
+    ```eli
+    DATABASE test;
+    TABLE items {nombre: string};
+    ADD items {nombre: "test"};
+    READ items;
+    ```
+  </Accordion>
+  
+  <Accordion title="Save frequently">
+    Use **Archivo → Guardar** or Ctrl+S regularly. The IDE doesn't auto-save.
+  </Accordion>
+  
+  <Accordion title="Check errors immediately">
+    After execution, if the console shows errors, open the error table right away to see details.
+  </Accordion>
+  
+  <Accordion title="Use comments">
+    Document complex queries with `##` comments:
+    ```eli
+    ## Find all high-value orders from this month
+    READ ordenes WHERE total > 1000 AND fecha > "2024-01";
+    ```
+  </Accordion>
+  
+  <Accordion title="Export early, export often">
+    Use EXPORT commands to save your data to JSON files as backups:
+    ```eli
+    EXPORT mydata AS "backup_mydata.json";
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Language Reference" icon="book" href="/language/syntax">
+    Complete ELI NoSQL syntax guide
+  </Card>
+  <Card title="Commands" icon="terminal" href="/language/commands">
+    All available commands and operations
+  </Card>
+  <Card title="Data Types" icon="database" href="/language/data-types">
+    Supported data types and structures
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/database">
+    Detailed API documentation
+  </Card>
+</CardGroup>

@@ -1,0 +1,600 @@
+---
+title: 'Commands Overview'
+description: 'Overview of all ELI NoSQL commands for database and data management'
+icon: 'terminal'
+---
+
+## Command Categories
+
+ELI NoSQL provides 8 core commands organized into three categories:
+
+<CardGroup cols={3}>
+  <Card title="Schema" icon="table">
+    Define database structure
+  </Card>
+  <Card title="Data Operations" icon="database">
+    Manipulate records
+  </Card>
+  <Card title="Utilities" icon="gear">
+    Export and manage data
+  </Card>
+</CardGroup>
+
+---
+
+## Schema Commands
+
+Define and configure your database structure.
+
+<Tabs>
+  <Tab title="DATABASE">
+    Create or load a database with optional persistent storage.
+
+    ### Syntax
+
+    ```eli
+    database <name> {
+      store at <path>;
+    };
+
+    ## Or without storage
+    database <name> { };
+    ```
+
+    ### Examples
+
+    ```eli
+    ## Database with JSON persistence
+    database myapp {
+      store at "data/myapp.json";
+    };
+
+    ## In-memory database (no persistence)
+    database tempdb { };
+    ```
+
+    ### Behavior
+
+    - Creates a new database or loads existing data from JSON
+    - If the file exists, schema and records are restored
+    - Sets the created database as active
+
+    <Note>
+      See [DATABASE Reference](/api/database) for detailed documentation.
+    </Note>
+  </Tab>
+
+  <Tab title="TABLE">
+    Define a typed table schema with field definitions.
+
+    ### Syntax
+
+    ```eli
+    table <name> {
+      <field1>: <type>;
+      <field2>: <type>;
+      ...
+    };
+    ```
+
+    ### Examples
+
+    ```eli
+    table users {
+      id: int;
+      name: string;
+      email: string;
+      age: int;
+      active: bool;
+    };
+
+    table products {
+      sku: string;
+      price: float;
+      tags: array;
+      metadata: object;
+    };
+    ```
+
+    ### Supported Types
+
+    - `int` - Integer numbers
+    - `float` - Decimal numbers
+    - `string` - Text data
+    - `bool` - Boolean (true/false)
+    - `array` - Ordered lists
+    - `object` - Nested documents
+
+    <Note>
+      See [TABLE Reference](/api/table) for detailed documentation.
+    </Note>
+  </Tab>
+
+  <Tab title="USE">
+    Switch the active database context.
+
+    ### Syntax
+
+    ```eli
+    use <database_name>;
+    ```
+
+    ### Examples
+
+    ```eli
+    ## Define multiple databases
+    database production { };
+    database staging { };
+
+    ## Switch context
+    use production;
+    add users { id: 1, name: "Alice" };
+
+    use staging;
+    add users { id: 1, name: "Test User" };
+    ```
+
+    ### Behavior
+
+    - All subsequent commands operate on the active database
+    - Required before executing data operations
+    - Throws error if database doesn't exist
+
+    <Note>
+      See [USE Reference](/api/use) for detailed documentation.
+    </Note>
+  </Tab>
+</Tabs>
+
+---
+
+## Data Operation Commands
+
+CRUD operations for managing records.
+
+<CardGroup cols={2}>
+  <Card title="ADD" icon="plus" href="/api/add">
+    Insert new records with full type validation
+    ```eli
+    add users {
+      id: 1,
+      name: "Alice"
+    };
+    ```
+  </Card>
+
+  <Card title="READ" icon="book-open" href="/api/read">
+    Query data with field selection and filtering
+    ```eli
+    read users {
+      fields: name, email;
+      filter: age > 18;
+    };
+    ```
+  </Card>
+
+  <Card title="UPDATE" icon="pen" href="/api/update">
+    Modify existing records conditionally
+    ```eli
+    update users {
+      set: active = false;
+      filter: id == 5;
+    };
+    ```
+  </Card>
+
+  <Card title="CLEAR" icon="trash" href="/api/clear">
+    Remove all records while preserving schema
+    ```eli
+    clear users;
+    ```
+  </Card>
+</CardGroup>
+
+### ADD - Insert Records
+
+<Accordion title="Syntax & Examples">
+  **Syntax:**
+  ```eli
+  add <table_name> {
+    <field1>: <value1>,
+    <field2>: <value2>,
+    ...
+  };
+  ```
+
+  **Examples:**
+  ```eli
+  ## Simple record
+  add users {
+    id: 1,
+    name: "Alice",
+    active: true
+  };
+
+  ## With arrays and objects
+  add products {
+    id: 100,
+    name: "Laptop",
+    tags: ["electronics", "computers"],
+    specs: {
+      cpu: "Intel i7",
+      ram: 16
+    }
+  };
+  ```
+
+  **Validation:**
+  - All fields defined in the table schema must be provided
+  - Each value must match its declared type
+  - Incomplete records are rejected
+</Accordion>
+
+### READ - Query Data
+
+<Accordion title="Syntax & Examples">
+  **Syntax:**
+  ```eli
+  read <table_name> {
+    fields: <field_list | *>;
+    filter: <expression>;
+  };
+  ```
+
+  **Examples:**
+  ```eli
+  ## Select all fields
+  read users {
+    fields: *;
+  };
+
+  ## Select specific fields
+  read users {
+    fields: name, email;
+  };
+
+  ## With filter
+  read users {
+    fields: *;
+    filter: active == true && age >= 18;
+  };
+
+  ## Fields only (no filter)
+  read products {
+    fields: name, price;
+  };
+  ```
+
+  **Results:**
+  - Displays a formatted table in the console
+  - Stores results for potential EXPORT
+</Accordion>
+
+### UPDATE - Modify Records
+
+<Accordion title="Syntax & Examples">
+  **Syntax:**
+  ```eli
+  update <table_name> {
+    set: <field1> = <value1>, <field2> = <value2>;
+    filter: <expression>;
+  };
+  ```
+
+  **Examples:**
+  ```eli
+  ## Update with filter
+  update users {
+    set: active = false;
+    filter: id == 5;
+  };
+
+  ## Update multiple fields
+  update products {
+    set: price = 99.99, in_stock = true;
+    filter: sku == "LAP001";
+  };
+
+  ## Update all records (no filter)
+  update users {
+    set: verified = true;
+  };
+  ```
+
+  **Validation:**
+  - Fields must exist in the table schema
+  - Values must match declared types
+  - Filter is optional (updates all if omitted)
+</Accordion>
+
+### CLEAR - Empty Table
+
+<Accordion title="Syntax & Examples">
+  **Syntax:**
+  ```eli
+  clear <table_name>;
+  ```
+
+  **Examples:**
+  ```eli
+  ## Remove all records from users table
+  clear users;
+
+  ## Table structure remains intact
+  read users { fields: *; };  ## Returns 0 rows
+  ```
+
+  **Behavior:**
+  - Removes **all records** from the table
+  - Schema (field definitions) is **preserved**
+  - Cannot be undone (unless data is persisted to JSON)
+</Accordion>
+
+---
+
+## Utility Commands
+
+<CardGroup cols={1}>
+  <Card title="EXPORT" icon="file-export" href="/api/export">
+    Export the most recent READ query results to a JSON file
+    ```eli
+    read users { fields: *; filter: active == true; };
+    export "active_users.json";
+    ```
+  </Card>
+</CardGroup>
+
+### EXPORT - Save Query Results
+
+<Accordion title="Syntax & Examples">
+  **Syntax:**
+  ```eli
+  export <filepath>;
+  ```
+
+  **Examples:**
+  ```eli
+  ## Read and export
+  read users {
+    fields: name, email;
+    filter: active == true;
+  };
+  export "active_users.json";
+
+  ## Export with relative path
+  read products { fields: *; };
+  export "exports/all_products.json";
+
+  ## Export with absolute path
+  read analytics { fields: *; };
+  export "/var/data/reports/analytics.json";
+  ```
+
+  **Output Format:**
+  ```json
+  {
+    "table": "users",
+    "fields": {
+      "id": "int",
+      "name": "string",
+      "email": "string"
+    },
+    "records": [
+      {"id": 1, "name": "Alice", "email": "alice@example.com"},
+      {"id": 2, "name": "Bob", "email": "bob@example.com"}
+    ]
+  }
+  ```
+
+  **Behavior:**
+  - Exports results from the **most recent** READ command
+  - Includes table name, schema, and matching records
+  - Overwrites existing files
+</Accordion>
+
+---
+
+## Command Workflow
+
+Typical command sequence for a complete application:
+
+<Steps>
+  <Step title="Define Database">
+    ```eli
+    database myapp {
+      store at "data/myapp.json";
+    };
+    ```
+  </Step>
+
+  <Step title="Define Tables">
+    ```eli
+    table users {
+      id: int;
+      name: string;
+      email: string;
+    };
+
+    table posts {
+      id: int;
+      author_id: int;
+      content: string;
+    };
+    ```
+  </Step>
+
+  <Step title="Activate Database">
+    ```eli
+    use myapp;
+    ```
+  </Step>
+
+  <Step title="Insert Data">
+    ```eli
+    add users { id: 1, name: "Alice", email: "alice@example.com" };
+    add users { id: 2, name: "Bob", email: "bob@example.com" };
+    add posts { id: 1, author_id: 1, content: "Hello World!" };
+    ```
+  </Step>
+
+  <Step title="Query Data">
+    ```eli
+    read users {
+      fields: *;
+      filter: id > 0;
+    };
+    ```
+  </Step>
+
+  <Step title="Update Records">
+    ```eli
+    update users {
+      set: email = "alice.new@example.com";
+      filter: id == 1;
+    };
+    ```
+  </Step>
+
+  <Step title="Export Results">
+    ```eli
+    read users { fields: *; };
+    export "users_backup.json";
+    ```
+  </Step>
+</Steps>
+
+---
+
+## Command Reference Quick Links
+
+<CardGroup cols={2}>
+  <Card title="DATABASE" icon="server" href="/api/database">
+    Create and configure databases
+  </Card>
+  <Card title="TABLE" icon="table" href="/api/table">
+    Define typed table schemas
+  </Card>
+  <Card title="USE" icon="arrow-pointer" href="/api/database">
+    Switch active database
+  </Card>
+  <Card title="ADD" icon="plus" href="/api/add">
+    Insert new records
+  </Card>
+  <Card title="READ" icon="book-open" href="/api/read">
+    Query with filters
+  </Card>
+  <Card title="UPDATE" icon="pen" href="/api/update">
+    Modify existing records
+  </Card>
+  <Card title="CLEAR" icon="trash" href="/api/clear">
+    Empty table data
+  </Card>
+  <Card title="EXPORT" icon="file-export" href="/api/export">
+    Save query results
+  </Card>
+</CardGroup>
+
+---
+
+## Parser Implementation
+
+The command grammar is defined in `Parser.cup`. Here are key productions:
+
+<Accordion title="Command Statement Grammar">
+  ```cup
+  stmt
+    ::= db_decl
+    |   table_decl
+    |   use_stmt
+    |   add_stmt
+    |   update_stmt
+    |   read_stmt
+    |   clear_stmt
+    |   export_stmt
+    ;
+  ```
+</Accordion>
+
+<Accordion title="DATABASE Grammar">
+  ```cup
+  db_decl
+    ::= DATABASE IDENTIFIER:n LBRACE STORE AT STRING_LITERAL:r SEMICOLON RBRACE
+        {: Modelo.Interprete.crearBaseDatos(n, r); :}
+    |   DATABASE IDENTIFIER:n LBRACE RBRACE
+        {: Modelo.Interprete.crearBaseDatos(n, null); :}
+    ;
+  ```
+
+  **Terminal symbols:** `DATABASE`, `STORE`, `AT`
+  
+  **Scanner.jflex:53-72**
+</Accordion>
+
+<Accordion title="ADD Grammar">
+  ```cup
+  add_stmt
+    ::= ADD IDENTIFIER:t
+        {: Modelo.Interprete.iniciarAdd(); :}
+        LBRACE value_list RBRACE SEMICOLON
+        {: Modelo.Interprete.ejecutarAdd(t); :}
+    ;
+
+  value_list
+    ::= value_list COMMA value
+    |   value
+    ;
+
+  value
+    ::= IDENTIFIER:k COLON json_value:v
+        {: Modelo.Interprete.agregarValor(k, v); :}
+    ;
+  ```
+
+  **Parser.cup:158-187**
+</Accordion>
+
+<Accordion title="READ Grammar">
+  ```cup
+  read_stmt
+    ::= READ IDENTIFIER:t LBRACE read_body RBRACE SEMICOLON
+        {: Modelo.Interprete.ejecutarRead(t); :}
+    ;
+
+  read_body
+    ::= fields_clause SEMICOLON filter_clause SEMICOLON
+    |   fields_clause SEMICOLON
+    ;
+
+  fields_clause
+    ::= FIELDS COLON field_name_list
+    |   FIELDS COLON STAR
+        {: Modelo.Interprete.agregarCampoRead("*"); :}
+    ;
+
+  filter_clause
+    ::= FILTER COLON expr_filter:e
+        {: Modelo.Interprete.establecerFiltro(e); :}
+    ;
+  ```
+
+  **Parser.cup:189-215**
+</Accordion>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Expressions" icon="function" href="/language/expressions">
+    Master filter expressions for READ and UPDATE
+  </Card>
+  <Card title="Data Types" icon="brackets-curly" href="/language/data-types">
+    Understand type validation in commands
+  </Card>
+  <Card title="Examples" icon="lightbulb" href="/ide/examples">
+    See complete command workflows
+  </Card>
+  <Card title="API Reference" icon="book" href="/api/database">
+    Detailed reference for each command
+  </Card>
+</CardGroup>

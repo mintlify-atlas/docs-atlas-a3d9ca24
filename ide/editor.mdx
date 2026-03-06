@@ -1,0 +1,198 @@
+---
+title: Code Editor
+description: Learn how to use the ELI NoSQL code editor effectively
+---
+
+The code editor is the heart of the ELI IDE, providing a comfortable environment for writing and editing ELI NoSQL code.
+
+## Editor Features
+
+### Dark Theme Interface
+
+The editor uses a carefully designed dark theme:
+
+- **Background**: Dark gray (RGB: 30, 30, 30)
+- **Text color**: Light gray (RGB: 220, 220, 220)
+- **Caret**: White for maximum visibility
+- **Font**: Consolas 13pt monospace
+
+<Info>
+  The dark theme reduces eye strain during extended coding sessions.
+</Info>
+
+### Line Numbers
+
+Line numbers appear in the left gutter with:
+
+- Automatic scrolling synchronized with code
+- Gray background (RGB: 45, 45, 45)
+- Light gray numbers (RGB: 150, 150, 150)
+- 40-pixel width for up to 9999 lines
+
+The line numbers update automatically as you type and are always visible during scrolling.
+
+### Syntax Features
+
+- **No line wrapping** - Long lines scroll horizontally
+- **Monospace font** - Perfect alignment for code
+- **Tab support** - Standard tab indentation
+- **Scroll bars** - Both vertical and horizontal when needed
+
+## File Operations
+
+### Creating a New File
+
+1. Click **Archivo → Nuevo**
+2. The editor clears and displays a blank canvas
+3. Window title shows: "ELI NOSQL - Nuevo archivo"
+4. Status bar confirms: "Nuevo archivo creado."
+
+```eli
+## Start typing your ELI code here
+DATABASE universidad;
+TABLE alumnos {
+  nombre: string,
+  edad: int
+};
+```
+
+### Opening Files
+
+**Method 1: Menu**
+
+1. Click **Archivo → Abrir**
+2. File chooser filters to show only `.code` files
+3. Select your file and click **Open**
+
+**Method 2: Drag and Drop**
+
+1. Locate your `.code` file in your file explorer
+2. Drag it over the editor area
+3. Editor background changes to blue-gray (RGB: 50, 50, 80)
+4. Status bar shows: "Suelta el archivo .code aquí..."
+5. Release to load the file
+
+<Tip>
+  Drag and drop is the fastest way to open files. The IDE accepts the first file if you drag multiple files.
+</Tip>
+
+### Saving Files
+
+**Saving existing files:**
+
+1. Click **Archivo → Guardar**
+2. File saves to its current location
+3. Status bar shows: "Guardado: /path/to/file.code"
+
+**Saving new files:**
+
+1. Click **Archivo → Guardar**
+2. File chooser appears with `.code` filter
+3. Enter filename (without extension)
+4. IDE automatically adds `.code` extension
+5. File saves and becomes the current file
+
+<Note>
+  The IDE automatically appends `.code` if you forget the extension.
+</Note>
+
+## Drag and Drop Details
+
+### Visual Feedback
+
+The drag-and-drop system provides clear visual cues:
+
+| Event | Editor Background | Status Bar |
+|-------|------------------|------------|
+| Normal | RGB(30, 30, 30) | "Listo. Arrastra un archivo..." |
+| Drag enters | RGB(50, 50, 80) | "Suelta el archivo .code aquí..." |
+| Drag exits | RGB(30, 30, 30) | "Listo." |
+| Drop complete | RGB(30, 30, 30) | "Archivo cargado: /path/to/file" |
+
+### Supported File Types
+
+The drag-and-drop handler:
+
+- Accepts any file type
+- Recommends `.code` files
+- Loads the first file if multiple are dropped
+- Displays error messages in the console for failures
+
+### Error Handling
+
+If file loading fails:
+
+```
+Error al cargar archivo: [error message]
+```
+
+Common errors:
+- File not found
+- Permission denied
+- Invalid file format
+
+## Window Title Updates
+
+The window title reflects the current state:
+
+- **New file**: `ELI NOSQL - Nuevo archivo`
+- **Opened file**: `ELI NOSQL - filename.code`
+- **After drag-drop**: `ELI NOSQL - filename.code`
+
+## Status Bar Messages
+
+The status bar displays contextual information:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Archivo cargado: /home/user/code/universidad.code  │
+└─────────────────────────────────────────────────────┘
+```
+
+Message types:
+- **Ready state**: General instructions
+- **File operations**: Load/save confirmations
+- **Execution results**: Token and error counts
+- **Errors**: Operation failures
+
+## Editing Tips
+
+<AccordionGroup>
+  <Accordion title="Use consistent indentation">
+    ELI NoSQL doesn't require specific indentation, but consistent spacing makes code more readable:
+    
+    ```eli
+    DATABASE universidad;
+    
+    TABLE alumnos {
+      nombre: string,
+      edad: int,
+      promedio: float
+    };
+    ```
+  </Accordion>
+
+  <Accordion title="Add comments for complex queries">
+    Use `##` for single-line comments to document your code:
+    
+    ```eli
+    ## Query all students with high grades
+    READ alumnos WHERE promedio > 90;
+    ```
+  </Accordion>
+
+  <Accordion title="Save frequently">
+    The IDE doesn't auto-save. Use **Archivo → Guardar** regularly to avoid losing work.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Run Your Code" icon="play" href="/ide/overview">
+    Learn how to execute and debug your programs
+  </Card>
+  <Card title="View Reports" icon="chart-line" href="/ide/reports">
+    Understand token tables and error reports
+  </Card>
+</CardGroup>

@@ -1,80 +1,579 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Create your first NoSQL database and run queries in minutes
+icon: rocket
 ---
 
-## Get started in three steps
+## Introduction
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide will walk you through creating a complete database application with ELI NoSQL in under 5 minutes. You'll create a database, define a table schema, insert records, and query data using the SQL-like ELI syntax.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+ELI NoSQL uses a familiar SQL-like syntax but stores data as JSON files. It supports complex data types including arrays and nested objects.
 </Note>
+
+## Your First Database
+
+<Steps>
+  <Step title="Launch the IDE">
+    Start the ELI NoSQL IDE:
+
+    ```bash
+    java -jar dist/ProyectoELI.jar
+    ```
+
+    The IDE opens with three panels:
+    - **Editor** (left): Write your ELI code
+    - **Reports** (right): View tokens and errors
+    - **Console** (bottom): See execution output
+  </Step>
+
+  <Step title="Create a database">
+    Type this code in the editor:
+
+    ```eli
+    database ecommerce {
+      store at "ecommerce.json";
+    }
+
+    use ecommerce;
+    ```
+
+    <Tip>
+    The `store at` clause specifies where to persist the database as JSON. If omitted, the database exists only in memory during execution.
+    </Tip>
+
+    Click **Ejecutar > ▶ Ejecutar** to run the code.
+
+    **Console output:**
+    ```
+    Base de datos 'ecommerce' creada.
+    Usando base de datos: ecommerce
+    ```
+  </Step>
+
+  <Step title="Define a table schema">
+    Add a table definition with typed fields:
+
+    ```eli
+    table products {
+      id: int;
+      name: string;
+      price: float;
+      inStock: bool;
+      tags: array;
+    }
+    ```
+
+    ELI supports these data types:
+    - `int` - Integer numbers
+    - `float` - Decimal numbers
+    - `string` - Text values
+    - `bool` - true/false
+    - `array` - Lists of values
+    - `object` - Nested JSON objects
+    - `null` - Null values
+
+    **Console output:**
+    ```
+    Tabla 'products' creada en 'ecommerce'.
+    ```
+  </Step>
+
+  <Step title="Insert data">
+    Add records using the `add` statement:
+
+    ```eli
+    add products {
+      id: 1,
+      name: "Laptop",
+      price: 999.99,
+      inStock: true,
+      tags: ["electronics", "computers"]
+    };
+
+    add products {
+      id: 2,
+      name: "Mouse",
+      price: 25.50,
+      inStock: true,
+      tags: ["electronics", "accessories"]
+    };
+
+    add products {
+      id: 3,
+      name: "Keyboard",
+      price: 75.00,
+      inStock: false,
+      tags: ["electronics", "accessories"]
+    };
+    ```
+
+    <Warning>
+    All fields defined in the table schema must be included when inserting records. Missing fields will cause an "Registro incompleto" error.
+    </Warning>
+
+    **Console output:**
+    ```
+    Registro insertado en 'products': {id=1, name=Laptop, ...}
+    Registro insertado en 'products': {id=2, name=Mouse, ...}
+    Registro insertado en 'products': {id=3, name=Keyboard, ...}
+    ```
+  </Step>
+
+  <Step title="Query the data">
+    Use `read` to query with field selection and filtering:
+
+    ```eli
+    read products {
+      fields: *;
+    };
+    ```
+
+    This returns all fields from all records.
+
+    **Console output:**
+    ```
+    ── Tabla: products ───────────────────────────
+    { "id": 1, "name": "Laptop", "price": 999.99, ... }
+    { "id": 2, "name": "Mouse", "price": 25.5, ... }
+    { "id": 3, "name": "Keyboard", "price": 75.0, ... }
+    ```
+  </Step>
+</Steps>
+
+<Check>
+Your database is now persisted to `ecommerce.json` in the project directory! You can close the IDE and your data will be reloaded next time.
+</Check>
+
+## Complete Working Example
+
+Here's a complete ELI program you can copy and paste:
+
+<CodeGroup>
+```eli example.code
+## ELI NoSQL Example - E-commerce Database
+
+## Create and select database
+database ecommerce {
+  store at "ecommerce.json";
+}
+
+use ecommerce;
+
+## Define product table schema
+table products {
+  id: int;
+  name: string;
+  price: float;
+  inStock: bool;
+  tags: array;
+}
+
+## Insert sample products
+add products {
+  id: 1,
+  name: "Laptop",
+  price: 999.99,
+  inStock: true,
+  tags: ["electronics", "computers"]
+};
+
+add products {
+  id: 2,
+  name: "Mouse",
+  price: 25.50,
+  inStock: true,
+  tags: ["electronics", "accessories"]
+};
+
+add products {
+  id: 3,
+  name: "Keyboard",
+  price: 75.00,
+  inStock: false,
+  tags: ["electronics", "accessories"]
+};
+
+## Query all products
+read products {
+  fields: *;
+};
+
+## Query specific fields
+read products {
+  fields: name, price;
+};
+
+## Query with filter
+read products {
+  fields: *;
+  filter: inStock == true;
+};
+
+## Complex filter with AND/OR
+read products {
+  fields: name, price;
+  filter: price < 100 && inStock == true;
+};
+```
+
+```json ecommerce.json (generated)
+{
+  "ecommerce": {
+    "products": [
+      {
+        "id": 1,
+        "name": "Laptop",
+        "price": 999.99,
+        "inStock": true,
+        "tags": ["electronics", "computers"]
+      },
+      {
+        "id": 2,
+        "name": "Mouse",
+        "price": 25.50,
+        "inStock": true,
+        "tags": ["electronics", "accessories"]
+      },
+      {
+        "id": 3,
+        "name": "Keyboard",
+        "price": 75.00,
+        "inStock": false,
+        "tags": ["electronics", "accessories"]
+      }
+    ]
+  }
+}
+```
+</CodeGroup>
+
+## Using the IDE Features
+
+### Drag and Drop Files
+
+You can drag `.code` files directly into the editor:
+
+<Steps>
+  <Step title="Save your code">
+    Use **Archivo > Guardar** to save as a `.code` file (e.g., `example.code`)
+  </Step>
+
+  <Step title="Drag to editor">
+    Simply drag the `.code` file from your file manager onto the editor area
+  </Step>
+
+  <Step title="Execute">
+    The file loads automatically - click **Ejecutar > ▶ Ejecutar** to run
+  </Step>
+</Steps>
+
+### View Token Analysis
+
+See how your code is tokenized:
+
+1. Execute your code
+2. Click **Reportes > Tabla de Tokens**
+3. The Reports panel shows all tokens with their types, line, and column
+
+```
+_____________________________________________
+|              TABLA DE TOKENS              |
+_____________________________________________
+#     Lexema               Tipo           Línea    Columna
+────────────────────────────────────────────────────────
+1     database            DATABASE        1        1
+2     ecommerce           IDENTIFIER      1        10
+3     {                   LBRACE          1        20
+...
+```
+
+### Debug Syntax Errors
+
+If your code has errors:
+
+1. Check the console for error messages
+2. Click **Reportes > Tabla de Errores** for detailed error information
+3. Errors show type, description, line, and column
+
+<Warning>
+Common errors:
+- Missing semicolons after statements
+- Mismatched braces `{}` or brackets `[]`
+- Using reserved keywords as identifiers
+- Type mismatches in field values
+</Warning>
+
+## Advanced Example: Nested Objects
+
+ELI supports complex nested data structures:
+
+```eli
+database university {
+  store at "university.json";
+}
+
+use university;
+
+table students {
+  id: int;
+  name: string;
+  email: string;
+  address: object;
+  courses: array;
+}
+
+add students {
+  id: 101,
+  name: "Alice Johnson",
+  email: "alice@university.edu",
+  address: {
+    "street": "123 College Ave",
+    "city": "Boston",
+    "zip": "02115"
+  },
+  courses: [
+    {"code": "CS101", "name": "Intro to Programming"},
+    {"code": "MATH201", "name": "Calculus II"}
+  ]
+};
+
+read students {
+  fields: *;
+};
+```
+
+<Tip>
+Arrays and objects can contain any valid JSON structure, including nested arrays and objects.
+</Tip>
+
+## Query Operations
+
+### Select Specific Fields
+
+```eli
+read products {
+  fields: name, price;
+};
+```
+
+Only returns `name` and `price` columns.
+
+### Filter with Comparisons
+
+```eli
+read products {
+  fields: *;
+  filter: price > 50;
+};
+```
+
+Supported operators:
+- `==` - Equal
+- `!=` - Not equal
+- `>` - Greater than
+- `<` - Less than
+- `>=` - Greater than or equal
+- `<=` - Less than or equal
+
+### Logical Operators
+
+```eli
+read products {
+  fields: name, price;
+  filter: (price < 100 && inStock == true) || price < 20;
+};
+```
+
+- `&&` - AND
+- `||` - OR
+- `!` - NOT
+
+<Note>
+Filters are evaluated against each record's field values. Complex expressions with parentheses are fully supported.
+</Note>
+
+## Update and Clear Operations
+
+### Update Records
+
+```eli
+update products {
+  filter: id == 3;
+  set: inStock = true, price = 69.99;
+};
+```
+
+Updates all records matching the filter with new values.
+
+### Clear All Records
+
+```eli
+clear products;
+```
+
+<Warning>
+`clear` removes all records from the table but keeps the schema. This operation cannot be undone!
+</Warning>
+
+## Export Results
+
+Export the last query results to a JSON file:
+
+```eli
+## First, run a query
+read products {
+  fields: *;
+  filter: inStock == true;
+};
+
+## Then export the results
+export {
+  store at "products_in_stock.json";
+};
+```
+
+This creates a separate JSON file with only the filtered results.
+
+## IDE Workflow Tips
+
+<CardGroup cols={2}>
+  <Card title="Iterative Development" icon="rotate">
+    1. Write code incrementally
+    2. Execute frequently to catch errors early
+    3. Use Reports to debug token/syntax issues
+    4. Check console for runtime errors
+  </Card>
+  
+  <Card title="File Management" icon="folder">
+    - Save scripts as `.code` files for reuse
+    - Keep data files (`.json`) in project root
+    - Use descriptive database names
+    - One database per `.json` file
+  </Card>
+</CardGroup>
+
+## Behind the Scenes
+
+When you click **Ejecutar**, here's what happens:
+
+<Steps>
+  <Step title="Lexical Analysis">
+    JFlex tokenizes your code into a stream of tokens (keywords, identifiers, literals, symbols)
+  </Step>
+
+  <Step title="Syntax Parsing">
+    CUP parser validates the token stream against the ELI grammar and builds a parse tree
+  </Step>
+
+  <Step title="Interpretation">
+    The `Interprete` class executes the parsed statements:
+    - Creates in-memory database and table structures
+    - Validates data types against schemas
+    - Performs queries and filters
+    - Persists changes to JSON files
+  </Step>
+
+  <Step title="Output">
+    Results are displayed in the console panel, and report tables show tokens/errors
+  </Step>
+</Steps>
+
+## Common Patterns
+
+### Multi-Database Setup
+
+```eli
+## Create multiple databases
+database dev {
+  store at "dev.json";
+}
+
+database prod {
+  store at "prod.json";
+}
+
+## Switch between them
+use dev;
+table test_data { id: int; };
+
+use prod;
+table production_data { id: int; };
+```
+
+### In-Memory Database
+
+```eli
+## No persistence - exists only during execution
+database temp {
+}
+
+use temp;
+table scratch { data: string; };
+```
+
+Perfect for testing without creating files.
+
+### Batch Insert Pattern
+
+```eli
+use ecommerce;
+
+add products { id: 1, name: "Item 1", price: 10.0, inStock: true, tags: [] };
+add products { id: 2, name: "Item 2", price: 20.0, inStock: true, tags: [] };
+add products { id: 3, name: "Item 3", price: 30.0, inStock: false, tags: [] };
+
+read products { fields: *; };
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Error: Registro incompleto">
+    You're missing required fields in an `add` statement.
+
+    **Solution:** Include all fields defined in the table schema, even if the value is `null`.
+  </Accordion>
+
+  <Accordion title="Error: Tipo incorrecto en campo">
+    The value type doesn't match the schema definition.
+
+    **Solution:** 
+    - Use `123` for int, not `"123"`
+    - Use `12.5` for float
+    - Use `"text"` for strings (quoted)
+    - Use `true` or `false` for bool (not quoted)
+  </Accordion>
+
+  <Accordion title="Error: No hay base de datos activa">
+    You're trying to create a table or insert data without selecting a database.
+
+    **Solution:** Add `use database_name;` before table operations.
+  </Accordion>
+
+  <Accordion title="Filter returns no results">
+    Your filter expression doesn't match any records, or has a syntax error.
+
+    **Solution:**
+    - Test without filter first: `read table { fields: *; };`
+    - Check field names match schema exactly (case-sensitive)
+    - Verify comparison values are correct type
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={3}>
+  <Card title="Language Syntax" icon="code" href="/language/syntax">
+    Complete reference for all ELI statements
+  </Card>
+  
+  <Card title="Data Types" icon="database" href="/language/data-types">
+    Deep dive into types, arrays, and objects
+  </Card>
+  
+  <Card title="Advanced Queries" icon="filter" href="/language/expressions">
+    Master filtering and complex expressions
+  </Card>
+</CardGroup>

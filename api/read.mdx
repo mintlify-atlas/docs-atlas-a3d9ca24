@@ -1,0 +1,369 @@
+---
+title: 'READ'
+description: 'Queries table data with optional field selection and filtering'
+---
+
+## Description
+
+The `READ` command queries data from a table. It supports field selection (projection) and filtering (selection) to retrieve specific subsets of data. Query results are stored and can be exported using the EXPORT command.
+
+## Syntax
+
+```eli
+READ table_name {
+  FIELDS: field1, field2, ...;
+};
+
+READ table_name {
+  FIELDS: *;
+};
+
+READ table_name {
+  FIELDS: field1, field2, ...;
+  FILTER: expression;
+};
+```
+
+## Parameters
+
+<ParamField path="table_name" type="string" required>
+  The name of the table to query. Must exist in the active database.
+</ParamField>
+
+<ParamField path="FIELDS" type="field list" required>
+  Specifies which fields to display:
+  - `*` - All fields in the table
+  - `field1, field2, ...` - Specific fields (comma-separated)
+  
+  The FIELDS clause is required.
+</ParamField>
+
+<ParamField path="FILTER" type="expression">
+  Optional filter expression to select specific records. Supports:
+  - Comparison operators: `==`, `!=`, `>`, `<`, `>=`, `<=`
+  - Logical operators: `&&` (AND), `||` (OR), `!` (NOT)
+  - Parentheses for grouping: `(expression)`
+  
+  If omitted, all records are returned.
+</ParamField>
+
+## Return Value
+
+Displays a formatted table of results:
+```
+=== Resultado de READ table ===
+field1         field2         field3
+-----------------------------------------------
+value1         value2         value3
+value4         value5         value6
+Total: N registro(s).
+```
+
+The query results are stored internally and can be exported with EXPORT.
+
+## Behavior
+
+1. **Field Projection**: Only specified fields are displayed (or all with `*`)
+2. **Filter Evaluation**: Each record is tested against the filter expression
+3. **Result Storage**: Matching records are saved as "last query" for EXPORT
+4. **Display Format**: Results are shown in a columnar format with 15-character wide columns
+5. **Empty Results**: Returns "Total: 0 registro(s)." if no records match
+
+## Filter Expressions
+
+### Comparison Operators
+
+<ParamField path="==" type="operator">
+  Equal to. Works with all types.
+  
+  Examples: `age == 25`, `name == "Alice"`, `active == true`
+</ParamField>
+
+<ParamField path="!=" type="operator">
+  Not equal to. Works with all types.
+  
+  Examples: `status != "inactive"`, `count != 0`
+</ParamField>
+
+<ParamField path=">" type="operator">
+  Greater than. Works with numbers.
+  
+  Examples: `price > 100`, `age > 18`
+</ParamField>
+
+<ParamField path="<" type="operator">
+  Less than. Works with numbers.
+  
+  Examples: `stock < 10`, `temperature < 32`
+</ParamField>
+
+<ParamField path=">=" type="operator">
+  Greater than or equal to. Works with numbers.
+  
+  Examples: `score >= 90`, `quantity >= 1`
+</ParamField>
+
+<ParamField path="<=" type="operator">
+  Less than or equal to. Works with numbers.
+  
+  Examples: `price <= 1000`, `age <= 65`
+</ParamField>
+
+### Logical Operators
+
+<ParamField path="&&" type="operator">
+  Logical AND. Both conditions must be true.
+  
+  Example: `age >= 18 && age <= 65`
+</ParamField>
+
+<ParamField path="||" type="operator">
+  Logical OR. At least one condition must be true.
+  
+  Example: `status == "active" || status == "pending"`
+</ParamField>
+
+<ParamField path="!" type="operator">
+  Logical NOT. Negates the expression.
+  
+  Example: `!(price > 1000)`
+</ParamField>
+
+## Examples
+
+### Read all records with all fields
+
+```eli
+READ users {
+  FIELDS: *;
+};
+```
+
+Displays all records with all fields from the users table.
+
+### Read specific fields
+
+```eli
+READ users {
+  FIELDS: id, name, email;
+};
+```
+
+Displays only the id, name, and email fields for all users.
+
+### Filter by equality
+
+```eli
+READ users {
+  FIELDS: *;
+  FILTER: active == true;
+};
+```
+
+Shows only active users.
+
+### Filter by string comparison
+
+```eli
+READ users {
+  FIELDS: name, email;
+  FILTER: name == "Alice";
+};
+```
+
+Finds users named "Alice".
+
+### Filter by numeric range
+
+```eli
+READ products {
+  FIELDS: name, price, stock;
+  FILTER: price >= 100 && price <= 500;
+};
+```
+
+Finds products priced between 100 and 500.
+
+### Complex filter with OR
+
+```eli
+READ products {
+  FIELDS: *;
+  FILTER: stock < 10 || price > 1000;
+};
+```
+
+Finds products that are either low in stock OR expensive.
+
+### Filter with NOT operator
+
+```eli
+READ users {
+  FIELDS: name, active;
+  FILTER: !(active == false);
+};
+```
+
+Equivalent to `active == true`, shows active users.
+
+### Nested logical expressions
+
+```eli
+READ products {
+  FIELDS: name, price, stock;
+  FILTER: (price > 100 && stock > 0) || (price <= 50 && stock > 100);
+};
+```
+
+Finds products that are either:
+- Expensive (&gt;100) and in stock, OR
+- Cheap (&lt;=50) and abundant (&gt;100)
+
+### Filter with multiple field conditions
+
+```eli
+READ orders {
+  FIELDS: orderId, customer, total;
+  FILTER: total > 500 && customer == "Alice";
+};
+```
+
+Finds Alice's orders over $500.
+
+## Output Format Example
+
+```
+=== Resultado de READ users ===
+id             name           email          active
+-----------------------------------------------
+1              Alice          alice@ex.com   true
+2              Bob            bob@ex.com     true
+5              Eve            eve@ex.com     true
+Total: 3 registro(s).
+```
+
+Each field is displayed in a 15-character wide column.
+
+## Error Cases
+
+### No active database
+
+```eli
+READ users {
+  FIELDS: *;
+};
+```
+
+Results in:
+```
+ERROR: No hay base de datos activa.
+```
+
+Solution: Create/activate a database first.
+
+### Table doesn't exist
+
+```eli
+DATABASE mydb { }
+
+READ users {
+  FIELDS: *;
+};
+```
+
+Results in:
+```
+ERROR: La tabla 'users' no existe.
+```
+
+Solution: Create the table before querying.
+
+### Invalid field in FIELDS clause
+
+If you specify a field that doesn't exist in the schema, it will display `null` for that column in all records.
+
+## Filter Expression Details
+
+### Type Handling
+
+**Strings**: Must be quoted in filter expressions
+```eli
+FILTER: name == "Alice"
+```
+
+**Numbers**: Unquoted numeric literals
+```eli
+FILTER: age > 18
+FILTER: price >= 99.99
+```
+
+**Booleans**: Use `true` or `false` keywords
+```eli
+FILTER: active == true
+```
+
+### Operator Precedence
+
+1. Parentheses `()`
+2. NOT `!`
+3. Comparison operators `==`, `!=`, `>`, `<`, `>=`, `<=`
+4. AND `&&`
+5. OR `||`
+
+Example:
+```eli
+FILTER: price > 100 && stock > 0 || name == "Special"
+```
+
+Is evaluated as:
+```eli
+FILTER: ((price > 100) && (stock > 0)) || (name == "Special")
+```
+
+### Field References
+
+Field names in filter expressions are unquoted:
+```eli
+FILTER: age >= 18
+FILTER: firstName == "Alice"
+```
+
+### Null Handling
+
+If a field value is `null`, most comparisons return `false`:
+```eli
+FILTER: email == "test"  // false if email is null
+```
+
+## Query Result Storage
+
+Each READ command:
+1. Clears previous query results
+2. Stores matching records internally
+3. Remembers the queried table name
+4. Makes results available for EXPORT
+
+The stored results persist until the next READ command.
+
+## Performance Notes
+
+- Filtering is performed in-memory
+- No indexes - all records are scanned
+- Complex filter expressions may be slower on large datasets
+- Field selection (FIELDS) only affects display, not performance
+
+## Related Commands
+
+- [EXPORT](/api/export) - Export query results to JSON
+- [TABLE](/api/table) - Define table schema
+- [ADD](/api/add) - Insert records to query
+- [UPDATE](/api/update) - Modify records based on filters
+
+## Notes
+
+- Field names are case-sensitive
+- String comparisons are case-sensitive
+- The FIELDS clause is required (use `*` for all fields)
+- Filter expressions support nested parentheses
+- Results are displayed in insertion order (as stored in the table)
+- Null values display as "null" in the output

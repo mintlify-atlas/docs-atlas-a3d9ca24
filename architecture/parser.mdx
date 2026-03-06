@@ -1,0 +1,574 @@
+---
+title: 'Syntax Analysis (Parser)'
+description: 'CUP parser generation, grammar rules, and semantic actions'
+---
+
+## Overview
+
+The parser is generated from `Parser.cup` using **CUP** (Construction of Useful Parsers), an LALR(1) parser generator for Java. It reads the token stream from the lexer, validates syntax according to grammar rules, and executes semantic actions by calling interpreter methods.
+
+**Location:** `src/cup/Parser.cup` → generates `analisis/Parser.java`
+
+## Parser Architecture
+
+The ELI NoSQL parser uses a **syntax-directed translation** approach:
+
+```
+Tokens → Grammar Rules → Semantic Actions → Immediate Execution
+```
+
+Unlike traditional compilers that build an Abstract Syntax Tree (AST), this parser executes commands **immediately** during parsing by calling `Modelo.Interprete.*` methods directly.
+
+## Grammar Structure
+
+### Terminals (Tokens)
+
+Terminals are tokens produced by the lexer (Parser.cup:46-59):
+
+```java
+terminal DATABASE, TABLE, USE, READ, ADD, UPDATE, CLEAR, EXPORT;
+terminal STORE, AT, FIELDS, FILTER, SET;
+terminal TINT, TFLOAT, TSTRING, TBOOL, TARRAY, TOBJECT, NULL;
+
+terminal Integer   INT_LITERAL;
+terminal Double    FLOAT_LITERAL;
+terminal String    STRING_LITERAL;
+terminal Boolean   TRUE, FALSE;
+terminal String    IDENTIFIER;
+
+terminal EQ, NEQ, GT, LT, GEQ, LEQ;
+terminal AND, OR, NOT;
+terminal LBRACE, RBRACE, LPAREN, RPAREN, LBRACKET, RBRACKET;
+terminal SEMICOLON, COLON, COMMA, STAR, ASSIGN;
+```
+
+### Non-Terminals
+
+Non-terminals represent grammar structures (Parser.cup:64-87):
+
+```java
+non terminal program, stmt_list, stmt;
+non terminal db_decl, table_decl, field_list, field_def;
+non terminal String data_type;
+
+non terminal use_stmt, add_stmt, update_stmt, clear_stmt, export_stmt;
+non terminal read_stmt, read_body, fields_clause, filter_clause;
+non terminal set_clause, set_list, set_item;
+
+non terminal value, value_list, field_name_list;
+
+non terminal java.util.List array_literal;
+non terminal java.util.Map object_literal;
+non terminal Object json_value;
+
+non terminal String expr_filter;  // Filter expressions
+non terminal String expr_and;
+non terminal String expr_not;
+non terminal String expr_rel;
+```
+
+### Operator Precedence
+
+The parser defines operator precedence for filter expressions (Parser.cup:92-95):
+
+```java
+precedence left OR;       // Lowest precedence
+precedence left AND;
+precedence right NOT;
+precedence left EQ, NEQ, GT, LT, GEQ, LEQ;  // Highest precedence
+```
+
+This matches standard boolean logic: `!` > `==, !=, >, <, >=, <=` > `&&` > `||`
+
+## Core Grammar Rules
+
+### Program Structure
+
+A program consists of one or more statements (Parser.cup:103-119):
+
+```java
+program ::= stmt_list ;
+
+stmt_list
+  ::= stmt_list stmt
+  |   stmt
+  ;
+
+stmt
+  ::= db_decl
+  |   table_decl
+  |   use_stmt
+  |   add_stmt
+  |   update_stmt
+  |   read_stmt
+  |   clear_stmt
+  |   export_stmt
+  ;
+```
+
+### Database Declaration
+
+**Syntax:**
+```eli
+database <name> { store at <path>; };
+database <name> { };
+```
+
+**Grammar (Parser.cup:121-126):**
+```java
+db_decl
+  ::= DATABASE IDENTIFIER:n LBRACE STORE AT STRING_LITERAL:r SEMICOLON RBRACE
+      {: Modelo.Interprete.crearBaseDatos(n, r); :}
+  |   DATABASE IDENTIFIER:n LBRACE RBRACE
+      {: Modelo.Interprete.crearBaseDatos(n, null); :}
+  ;
+```
+
+**Semantic action:** Calls `Interprete.crearBaseDatos(name, path)` immediately.
+
+### Table Declaration
+
+**Syntax:**
+```eli
+table <name> {
+  <field>: <type>;
+  <field>: <type>;
+  ...
+};
+```
+
+**Grammar (Parser.cup:133-156):**
+```java
+table_decl
+  ::= TABLE IDENTIFIER:n  {: Modelo.Interprete.crearTabla(n); :}
+         LBRACE field_list RBRACE
+      {: Modelo.Interprete.finalizarTabla(); :}
+  ;
+
+field_list
+  ::= field_list field_def
+  |   field_def
+  ;
+
+field_def
+  ::= IDENTIFIER:f COLON data_type:t SEMICOLON
+      {: Modelo.Interprete.agregarCampo(f, t); :}
+  ;
+
+data_type
+  ::= TINT    {: RESULT = "int"; :}
+  |   TFLOAT  {: RESULT = "float"; :}
+  |   TSTRING {: RESULT = "string"; :}
+  |   TBOOL   {: RESULT = "bool"; :}
+  |   TARRAY  {: RESULT = "array"; :}
+  |   TOBJECT {: RESULT = "object"; :}
+  ;
+```
+
+**Semantic actions:**
+1. `crearTabla(name)` - Start table definition
+2. `agregarCampo(field, type)` - Add each field to schema
+3. `finalizarTabla()` - Finish table definition
+
+### Use Statement
+
+**Syntax:**
+```eli
+use <database>;
+```
+
+**Grammar (Parser.cup:128-131):**
+```java
+use_stmt
+  ::= USE IDENTIFIER:n SEMICOLON
+      {: Modelo.Interprete.usarBaseDatos(n); :}
+  ;
+```
+
+### Add Statement (Insert)
+
+**Syntax:**
+```eli
+add <table> {
+  <field>: <value>,
+  <field>: <value>,
+  ...
+};
+```
+
+**Grammar (Parser.cup:158-187):**
+```java
+add_stmt
+  ::= ADD IDENTIFIER:t
+      {: Modelo.Interprete.iniciarAdd(); :}
+      LBRACE value_list RBRACE SEMICOLON
+      {: Modelo.Interprete.ejecutarAdd(t); :}
+  ;
+
+value_list
+  ::= value_list COMMA value
+  |   value
+  ;
+
+value
+  ::= IDENTIFIER:k COLON json_value:v
+      {: Modelo.Interprete.agregarValor(k, v); :}
+  ;
+
+json_value
+  ::= INT_LITERAL:v       {: RESULT = v; :}
+  | FLOAT_LITERAL:v       {: RESULT = v; :}
+  | STRING_LITERAL:v      {: RESULT = v; :}
+  | TRUE                  {: RESULT = true; :}
+  | FALSE                 {: RESULT = false; :}
+  | NULL                  {: RESULT = null; :}
+  | array_literal:a       {: RESULT = a; :}
+  | object_literal:o      {: RESULT = o; :}
+  ;
+```
+
+**Semantic actions:**
+1. `iniciarAdd()` - Clear temporary value buffer
+2. `agregarValor(key, value)` - Store each field-value pair
+3. `ejecutarAdd(table)` - Insert the complete record
+
+### Read Statement (Query)
+
+**Syntax:**
+```eli
+read <table> {
+  fields: <field1>, <field2>, ... | *;
+  filter: <expression>;
+};
+```
+
+**Grammar (Parser.cup:189-267):**
+```java
+read_stmt
+  ::= READ IDENTIFIER:t LBRACE read_body RBRACE SEMICOLON
+      {: Modelo.Interprete.ejecutarRead(t); :}
+  ;
+
+read_body
+  ::= fields_clause SEMICOLON filter_clause SEMICOLON
+  |   fields_clause SEMICOLON
+  ;
+
+fields_clause
+  ::= FIELDS COLON field_name_list
+  |   FIELDS COLON STAR
+      {: Modelo.Interprete.agregarCampoRead("*"); :}
+  ;
+
+field_name_list
+  ::= field_name_list COMMA IDENTIFIER:f
+      {: Modelo.Interprete.agregarCampoRead(f); :}
+  |   IDENTIFIER:f
+      {: Modelo.Interprete.agregarCampoRead(f); :}
+  ;
+
+filter_clause
+  ::= FILTER COLON expr_filter:e
+      {: Modelo.Interprete.establecerFiltro(e); :}
+  ;
+```
+
+**Filter expression grammar:**
+```java
+expr_filter
+  ::= expr_filter:a OR expr_and:b
+      {: RESULT = "(" + a + "||" + b + ")"; :}
+  |   expr_and:a
+      {: RESULT = a; :}
+  ;
+
+expr_and
+  ::= expr_and:a AND expr_not:b
+      {: RESULT = "(" + a + "&&" + b + ")"; :}
+  |   expr_not:a
+      {: RESULT = a; :}
+  ;
+
+expr_not
+  ::= NOT expr_not:a
+      {: RESULT = "!" + a; :}
+  |   LPAREN expr_filter:a RPAREN
+      {: RESULT = "(" + a + ")"; :}
+  |   expr_rel:a
+      {: RESULT = a; :}
+  ;
+
+expr_rel
+  ::= campo:c rel_op:o val:v
+      {: RESULT = c + o + v; :}
+  ;
+
+rel_op
+  ::= EQ  {: RESULT = "=="; :}
+  |   NEQ {: RESULT = "!="; :}
+  |   GT  {: RESULT = ">"; :}
+  |   LT  {: RESULT = "<"; :}
+  |   GEQ {: RESULT = ">="; :}
+  |   LEQ {: RESULT = "<="; :}
+  ;
+```
+
+The parser constructs a string representation of the filter that the interpreter evaluates at runtime.
+
+**Example:**
+```eli
+filter: age >= 18 && status == "active"
+```
+
+Becomes:
+```java
+"((age>=18)&&(status==\"active\"))"
+```
+
+### Update Statement
+
+**Syntax:**
+```eli
+update <table> {
+  set: <field> = <value>, <field> = <value>;
+  filter: <expression>;
+};
+```
+
+**Grammar (Parser.cup:269-294):**
+```java
+update_stmt
+  ::= UPDATE IDENTIFIER:t LBRACE set_clause SEMICOLON filter_clause SEMICOLON RBRACE SEMICOLON
+      {: Modelo.Interprete.ejecutarUpdate(t); :}
+  |   UPDATE IDENTIFIER:t LBRACE set_clause SEMICOLON RBRACE SEMICOLON
+      {: Modelo.Interprete.ejecutarUpdate(t); :}
+  ;
+
+set_clause ::= SET COLON set_list ;
+
+set_list
+  ::= set_list COMMA set_item
+  |   set_item
+  ;
+
+set_item
+  ::= IDENTIFIER:k ASSIGN INT_LITERAL:v
+      {: Modelo.Interprete.agregarSet(k, v); :}
+  |   IDENTIFIER:k ASSIGN FLOAT_LITERAL:v
+      {: Modelo.Interprete.agregarSet(k, v); :}
+  |   IDENTIFIER:k ASSIGN STRING_LITERAL:v
+      {: Modelo.Interprete.agregarSet(k, v); :}
+  |   IDENTIFIER:k ASSIGN TRUE
+      {: Modelo.Interprete.agregarSet(k, true); :}
+  |   IDENTIFIER:k ASSIGN FALSE
+      {: Modelo.Interprete.agregarSet(k, false); :}
+  ;
+```
+
+### Clear Statement
+
+**Syntax:**
+```eli
+clear <table>;
+```
+
+**Grammar (Parser.cup:296-299):**
+```java
+clear_stmt
+  ::= CLEAR IDENTIFIER:t SEMICOLON
+      {: Modelo.Interprete.limpiarTabla(t); :}
+  ;
+```
+
+### Export Statement
+
+**Syntax:**
+```eli
+export "filename.json";
+```
+
+**Grammar (Parser.cup:301-304):**
+```java
+export_stmt
+  ::= EXPORT STRING_LITERAL:f SEMICOLON
+      {: Modelo.Interprete.exportar(f); :}
+  ;
+```
+
+## Complex Data Types
+
+### Array Literals
+
+**Syntax:**
+```eli
+[element1, element2, ...]
+```
+
+**Grammar (Parser.cup:339-360):**
+```java
+array_literal
+  ::= LBRACKET array_elements:a RBRACKET
+      {: RESULT = a; :}
+  | LBRACKET RBRACKET
+      {: RESULT = new java.util.ArrayList(); :}
+  ;
+
+array_elements
+  ::= array_elements:l COMMA json_value:v
+      {:  ((java.util.List)l).add(v);
+          RESULT = l; :}
+  | json_value:v
+      {:  java.util.List lista = new java.util.ArrayList();
+          lista.add(v);
+          RESULT = lista; :}
+  ;
+```
+
+**Example:**
+```eli
+tags: ["java", "database", "compiler"]
+```
+
+### Object Literals
+
+**Syntax:**
+```eli
+{ key1: value1, key2: value2, ... }
+```
+
+**Grammar (Parser.cup:306-327):**
+```java
+object_literal
+  ::= LBRACE object_fields:f RBRACE
+      {: RESULT = f; :}
+  | LBRACE RBRACE
+      {: RESULT = new java.util.HashMap(); :}
+  ;
+
+object_fields
+  ::= object_fields:m COMMA IDENTIFIER:k COLON json_value:v
+      {:  m.put(k, v);
+          RESULT = m; :}
+  | IDENTIFIER:k COLON json_value:v
+      {:  java.util.Map map = new java.util.HashMap();
+          map.put(k, v);
+          RESULT = map; :}
+  ;
+```
+
+**Example:**
+```eli
+address: { street: "Main St", city: "NYC", zip: 10001 }
+```
+
+## Error Handling
+
+The parser defines custom error handlers (Parser.cup:12-38):
+
+### Syntax Error Handler
+
+```java
+parser code {:
+@Override
+public void syntax_error(Symbol s){
+    String lexema = (s.value != null) ? s.value.toString() : "null";
+    Reportes.agregarError(
+        "Sintactico",
+        "Token inesperado: " + s.value,
+        s.left,
+        s.right
+    );
+}
+```
+
+Called when the parser encounters an unexpected token.
+
+### Unrecoverable Error Handler
+
+```java
+@Override
+public void unrecovered_syntax_error(Symbol s) {
+    String lexema = (s.value != null) ? s.value.toString() : "null";
+    Reportes.agregarError(
+        "Sintactico",
+        "Error fatal",
+        s.left,
+        s.right
+    );
+}
+```
+
+Called when the parser cannot recover from errors.
+
+## Semantic Actions
+
+Semantic actions are embedded in grammar rules using `{: ... :}` syntax:
+
+```java
+rule ::= TERMINAL non_terminal:variable
+         {: /* Java code here */
+            Modelo.Interprete.someMethod(variable);
+            RESULT = someValue;  // Assign value to this non-terminal
+         :}
+      ;
+```
+
+**Key points:**
+- Actions execute **immediately** when the rule is reduced
+- Variables capture values from terminals and non-terminals
+- `RESULT` assigns the value to the non-terminal being defined
+- Direct calls to `Modelo.Interprete.*` methods
+
+## Parser-Interpreter Communication
+
+The parser maintains state in the interpreter:
+
+```
+┌──────────────────────────────────────────────────────┐
+│                     Parser                           │
+│  - Validates syntax                                  │
+│  - Calls Interprete methods                          │
+└──────────────────┬───────────────────────────────────┘
+                   │
+                   v
+┌──────────────────────────────────────────────────────┐
+│                 Interprete                           │
+│  - Accumulates values in temporary buffers           │
+│  - valoresActuales: Map<String, Object>              │
+│  - camposReadActual: List<String>                    │
+│  - filtroActual: String                              │
+│  - setActual: Map<String, Object>                    │
+│                                                      │
+│  - Executes commands when complete                   │
+└──────────────────────────────────────────────────────┘
+```
+
+**Example for ADD statement:**
+
+1. Parser reduces `ADD IDENTIFIER:t` → Calls `iniciarAdd()`
+2. Parser reduces each `value` → Calls `agregarValor(k, v)`
+3. Parser reduces `add_stmt` → Calls `ejecutarAdd(t)`
+
+The interpreter buffers values during steps 1-2, then inserts the complete record in step 3.
+
+## Generated Files
+
+CUP generates the following files:
+
+- **`analisis/Parser.java`** - The actual parser implementation
+- **`analisis/sym.java`** - Token constants (e.g., `sym.DATABASE`, `sym.IDENTIFIER`)
+
+These files should **never be edited manually**. Regenerate them from `Parser.cup` when grammar changes.
+
+## Related Files
+
+- **`src/cup/Parser.cup`** - CUP grammar specification
+- **`analisis/Parser.java`** - Generated parser (do not edit)
+- **`analisis/sym.java`** - Token symbols (generated)
+- **`Modelo/Interprete.java`** - Semantic action implementation
+
+## Next Steps
+
+<Card title="Interpreter" icon="play" href="/architecture/interpreter">
+  Learn how commands are executed and the database is managed
+</Card>

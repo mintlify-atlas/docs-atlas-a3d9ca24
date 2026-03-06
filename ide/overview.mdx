@@ -1,0 +1,101 @@
+---
+title: IDE Overview
+description: Introduction to the ELI NoSQL integrated development environment
+---
+
+The ELI NoSQL IDE is a complete development environment built with Java Swing that provides everything you need to write, test, and debug ELI code.
+
+## Main Window Layout
+
+The IDE features a three-panel layout optimized for productivity:
+
+<CardGroup cols={3}>
+  <Card title="Code Editor" icon="code">
+    Left panel with syntax highlighting, line numbers, and drag-and-drop support
+  </Card>
+  <Card title="Reports Panel" icon="table">
+    Right panel displaying token tables and error reports
+  </Card>
+  <Card title="Console Output" icon="terminal">
+    Bottom panel showing program execution results and status messages
+  </Card>
+</CardGroup>
+
+## Menu Structure
+
+The IDE provides three main menus:
+
+### Archivo (File)
+
+- **Nuevo** - Create a new file
+- **Abrir** - Open an existing .code file
+- **Guardar** - Save the current file
+
+### Ejecutar (Run)
+
+- **▶ Ejecutar** - Compile and run the current code
+
+### Reportes (Reports)
+
+- **Tabla de Tokens** - View all recognized tokens
+- **Tabla de Errores** - View lexical, syntactic, and semantic errors
+
+## Key Features
+
+### Drag and Drop Support
+
+Simply drag any `.code` file from your file explorer directly into the editor window. The IDE will:
+
+1. Highlight the editor area when you drag a file over it
+2. Load the file contents automatically when dropped
+3. Update the window title to show the filename
+4. Display the file path in the status bar
+
+<Note>
+  The IDE accepts `.code` files through drag-and-drop or the traditional **Abrir** menu option.
+</Note>
+
+### Status Bar
+
+The status bar at the bottom displays:
+- Current file path
+- Token count after compilation
+- Error count after compilation
+- Real-time status messages
+
+### Syntax Highlighting
+
+The editor features:
+- Dark theme optimized for long coding sessions
+- Monospace font (Consolas) for better code readability
+- Line numbers with automatic scrolling
+- White caret for visibility
+
+## Getting Started
+
+When you first launch the IDE:
+
+1. The editor displays a welcome message
+2. The status bar shows: "Listo. Arrastra un archivo .code al editor."
+3. You can either drag a file or start typing immediately
+
+<Tip>
+  Press **Ctrl+S** to save, and use the **Ejecutar** menu to run your code.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Learn the Editor" icon="pen" href="/ide/editor">
+    Explore editor features and keyboard shortcuts
+  </Card>
+  <Card title="View Reports" icon="chart-bar" href="/ide/reports">
+    Understand token tables and error reporting
+  </Card>
+  <Card title="Try Examples" icon="lightbulb" href="/ide/examples">
+    Follow complete examples from start to finish
+  </Card>
+  <Card title="Language Syntax" icon="book" href="/language/syntax">
+    Learn the ELI NoSQL language syntax
+  </Card>
+</CardGroup>
