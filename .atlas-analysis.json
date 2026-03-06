@@ -1,0 +1,109 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "ELI NoSQL",
+  "projectDescription": "A NoSQL database language compiler and IDE with custom syntax, lexical/syntactic analysis, and JSON persistence",
+  "theme": "aspen",
+  "primaryColor": "#2E7D32",
+  "lightColor": "#66BB6A",
+  "darkColor": "#1B5E20",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Language Guide",
+            "pages": [
+              "language/syntax",
+              "language/data-types",
+              "language/commands",
+              "language/expressions"
+            ]
+          },
+          {
+            "group": "Using the IDE",
+            "pages": [
+              "ide/overview",
+              "ide/editor",
+              "ide/reports",
+              "ide/examples"
+            ]
+          },
+          {
+            "group": "Compiler Architecture",
+            "pages": [
+              "architecture/overview",
+              "architecture/lexer",
+              "architecture/parser",
+              "architecture/interpreter"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Commands",
+            "pages": [
+              "api/database",
+              "api/table",
+              "api/add",
+              "api/read",
+              "api/update",
+              "api/clear",
+              "api/export"
+            ]
+          },
+          {
+            "group": "Java API",
+            "pages": [
+              "api/java/interprete",
+              "api/java/modelo",
+              "api/java/analisis"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Custom NoSQL database language with intuitive syntax",
+    "Full-featured Swing-based IDE with code editor and drag-and-drop support",
+    "JFlex lexical analyzer with comprehensive token recognition",
+    "CUP parser for syntactic analysis and error reporting",
+    "In-memory database with automatic JSON persistence",
+    "Support for complex data types (int, float, string, bool, array, object)",
+    "Filter expressions with relational and logical operators",
+    "Real-time error reporting with line/column information",
+    "Export query results to JSON format"
+  ],
+  "publicApiSurface": [
+    "DATABASE name STORE AT \"path.json\";",
+    "USE database_name;",
+    "TABLE table_name { field:type, ... };",
+    "ADD table_name { field:value, ... };",
+    "READ table_name FIELDS field1, field2 FILTER expression;",
+    "UPDATE table_name SET field=value FILTER expression;",
+    "CLEAR table_name;",
+    "EXPORT \"output.json\";",
+    "Interprete.crearBaseDatos(String, String)",
+    "Interprete.usarBaseDatos(String)",
+    "Interprete.insertarRegistro(String, Map)",
+    "Interprete.leerTabla(String, List, String)",
+    "Interprete.actualizarRegistros(String, Map, String)",
+    "Lexer.yylex()",
+    "Parser.parse()",
+    "BaseDatos.agregarTabla(Tabla)",
+    "Tabla.agregarRegistro(Registro)",
+    "Registro.setCampo(String, Object)"
+  ]
+}
