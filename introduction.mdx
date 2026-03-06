@@ -57,19 +57,21 @@ Here's a taste of what ELI code looks like:
 
 ```eli example.code
 ## Create a database with JSON persistence
-DATABASE university STORE AT "university.json";
-USE university;
+database university {
+  store at "university.json";
+}
+use university;
 
 ## Define a table schema
-TABLE students {
-    id: int,
-    name: string,
-    age: int,
-    gpa: float
-};
+table students {
+    id: int;
+    name: string;
+    age: int;
+    gpa: float;
+}
 
 ## Insert records
-ADD students {
+add students {
     id: 1,
     name: "Alice Johnson",
     age: 20,
@@ -77,13 +79,19 @@ ADD students {
 };
 
 ## Query with filters
-READ students FIELDS name, gpa FILTER gpa >= 3.5;
+read students {
+  fields: name, gpa;
+  filter: gpa >= 3.5;
+};
 
 ## Update records
-UPDATE students SET gpa = 4.0 FILTER name == "Alice Johnson";
+update students {
+  set: gpa = 4.0;
+  filter: name == "Alice Johnson";
+};
 
 ## Export results
-EXPORT "top_students.json";
+export "top_students.json";
 ```
 
 ## Use Cases
